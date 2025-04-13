@@ -1,0 +1,38 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.md'
+      - '!README.md'
+      - '!.github/**'
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          
+      - name: Clone Wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
+          
+      - name: Sync Wiki Content
+        run: |
+          # Copy all markdown files except README.md to wiki directory
+          find . -name "*.md" -not -path "./wiki/*" -not -path "./.github/*" -not -name "README.md" -exec cp {} wiki/ \;
+          
+      - name: Commit and Push to Wiki
+        working-directory: wiki
+        run: |
+          git add .
+          # Only commit and push if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Sync wiki content from main repository" && git push)
