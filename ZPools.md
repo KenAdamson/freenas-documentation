@@ -6,7 +6,8 @@ This page documents all ZPools configured on the TrueNAS server, including their
 
 | ZPool Name | Size | Allocated | Free | Capacity | Dedup | Status | Last Scrub | Purpose |
 |------------|------|-----------|------|----------|-------|--------|------------|---------|
-| Mir1       | 9.98TB | 8.86TB | 1.12TB | 88% | 1.25x | ONLINE | March 27, 2025 | Primary data storage |
+| Mir1       | 9.98TB | 9.79TB | 199GB | 98% | 1.25x | ONLINE | September 21, 2025 | Primary data storage |
+| Backups    | 1.81TB | 67GB | 1.75TB | 3% | 1.00x | ONLINE | August 11, 2025 | External USB backup storage |
 | freenas-boot | 55.5GB | 20.3GB | 35.2GB | 36% | 1.00x | ONLINE | April 9, 2025 | System boot pool |
 
 ## Detailed ZPool Configuration
@@ -14,11 +15,16 @@ This page documents all ZPools configured on the TrueNAS server, including their
 ### Mir1 (Primary Storage)
 
 **Configuration**: 6 mirror vdevs with 2 drives each, plus a cache device
-**Size**: 9.98TB total (8.86TB used, 1.12TB free, 88% capacity)
+**Size**: 9.98TB total (9.79TB used, 199GB free, 98% capacity)
 **Deduplication Ratio**: 1.25x
-**Fragmentation**: 58%
-**Status**: ONLINE
-**Last Scrub**: Completed on Thu Mar 27 13:46:51 2025 (repaired 0B in 13:45:53 with 0 errors)
+**Fragmentation**: 64%
+**Status**: ONLINE - **CRITICAL: Pool is 98% full**
+**Last Scrub**: Completed on Sun Sep 21 12:58:34 2025 (repaired 0B in 12:58:33 with 0 errors)
+
+**Current Issues**:
+- Pool is critically full at 98% capacity
+- Only 199GB free at pool level, ~71GB available at dataset level
+- Requires immediate attention: replace 1TB drives (da1, da11) with 2TB drives
 
 #### mirror-0
 | Drive | State | Read Errors | Write Errors | Checksum Errors |
@@ -61,12 +67,34 @@ This page documents all ZPools configured on the TrueNAS server, including their
 |-------|-------|-------------|--------------|-----------------|
 | gptid/21b92d71-98b9-11eb-8ea4-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
 
+### Backups (External USB Storage)
+
+**Configuration**: 1 mirror vdev with 2 USB drives
+**Size**: 1.81TB total (67GB used, 1.75TB free, 3% capacity)
+**Deduplication Ratio**: 1.00x
+**Status**: ONLINE
+**Last Scrub**: Completed on Mon Aug 11 05:22:16 2025 (resilvered 108K in 00:00:01 with 0 errors)
+**Purpose**: External USB backup storage, currently used for interim overflow storage
+
+#### mirror-0
+| Drive | State | Read Errors | Write Errors | Checksum Errors |
+|-------|-------|-------------|--------------|-----------------|
+| gptid/3c181d7a-7640-11f0-80f9-b496913a6fde | ONLINE | 0 | 0 | 0 |
+| gptid/3c937477-7640-11f0-80f9-b496913a6fde | ONLINE | 0 | 0 | 0 |
+
+**Interim Storage Configuration (October 2025)**:
+- Created `/mnt/Backups/movies_02` directory for overflow movie storage
+- Mounted via nullfs to `/mnt/Mir1/media/movies_2` to provide seamless access through existing NFS share
+- Mount persists across reboots via `/etc/fstab` entry
+- Accessible on NFS clients as `/mnt/media/movies_2` with 1.7TB available space
+- **This is a temporary solution until da1 and da11 are replaced with 2TB drives**
+
 ### freenas-boot (System Boot Pool)
 
 **Configuration**: Single disk
 **Size**: 55.5GB total (20.3GB used, 35.2GB free, 36% capacity)
 **Deduplication Ratio**: 1.00x
-**Fragmentation**: 2%
+**Fragmentation**: 3%
 **Status**: ONLINE
 **Last Scrub**: Completed on Wed Apr 9 03:46:06 2025 (repaired 0B in 00:01:06 with 0 errors)
 **Note**: Some supported features are not enabled on the pool. The pool can still be used, but some features are unavailable. Enable all features using 'zpool upgrade'.
@@ -99,17 +127,18 @@ The TrueNAS server has the following dataset structure:
 
 | Dataset | Used | Available | Referenced | Mount Point | Purpose |
 |---------|------|-----------|------------|-------------|---------|
-| Mir1 | 8.92TB | 1019GB | 396KB | /mnt/Mir1 | Root dataset |
-| Mir1/Artists | 3.06TB | 1019GB | 3.01TB | /mnt/Mir1/Artists | Artist files |
-| Mir1/Documents | 128KB | 1019GB | 128KB | /mnt/Mir1/Documents | Document storage |
-| Mir1/Files | 888GB | 1019GB | 888GB | /mnt/Mir1/Files | General file storage |
-| Mir1/Music | 18.7MB | 1019GB | 18.7MB | /mnt/Mir1/Music | Music files |
-| Mir1/Photography | 245GB | 1019GB | 245GB | /mnt/Mir1/Photography | Photography files |
-| Mir1/Pictures | 172KB | 1019GB | 172KB | /mnt/Mir1/Pictures | Picture storage |
-| Mir1/Projects | 35.5GB | 1019GB | 35.5GB | /mnt/Mir1/Projects | Project files |
-| Mir1/media | 4.71TB | 1019GB | 4.70TB | /mnt/Mir1/media | Media storage |
-| Mir1/sonolux | 88KB | 1019GB | 88KB | /mnt/Mir1/sonolux | Sonolux data |
-| Mir1/proxy-cache | 348KB | 1019GB | 348KB | /mnt/Mir1/proxy-cache | Proxy cache |
+| Mir1 | 9.84TB | 71GB | 396KB | /mnt/Mir1 | Root dataset |
+| Mir1/Artists | 3.1TB | 71GB | 3.1TB | /mnt/Mir1/Artists | Artist files (98% full) |
+| Mir1/Documents | 128KB | 71GB | 128KB | /mnt/Mir1/Documents | Document storage |
+| Mir1/Files | 850GB | 71GB | 850GB | /mnt/Mir1/Files | General file storage (92% full) |
+| Mir1/Music | 19MB | 71GB | 19MB | /mnt/Mir1/Music | Music files |
+| Mir1/Photography | 245GB | 71GB | 245GB | /mnt/Mir1/Photography | Photography files |
+| Mir1/Pictures | 172KB | 71GB | 172KB | /mnt/Mir1/Pictures | Picture storage |
+| Mir1/Projects | 36GB | 71GB | 36GB | /mnt/Mir1/Projects | Project files |
+| Mir1/media | 5.63TB | 71GB | 5.63TB | /mnt/Mir1/media | Media storage (99% full) |
+| Mir1/media/movies_2 | - | 1.7TB | - | /mnt/Mir1/media/movies_2 | **Nullfs mount to /mnt/Backups/movies_02** (interim overflow) |
+| Mir1/sonolux | 88KB | 71GB | 88KB | /mnt/Mir1/sonolux | Sonolux data |
+| Mir1/proxy-cache | 348KB | 71GB | 348KB | /mnt/Mir1/proxy-cache | Proxy cache |
 
 #### Jail Datasets
 
@@ -144,6 +173,16 @@ The boot pool contains multiple boot environments for TrueNAS system updates:
 
 The boot pool contains multiple boot environments from previous TrueNAS versions, allowing for rollback if needed. The current active boot environment is 13.0-U6.7.
 
+### Backups Datasets
+
+| Dataset | Used | Available | Referenced | Mount Point | Purpose |
+|---------|------|-----------|------------|-------------|---------|
+| Backups | 67GB | 1.69TB | 96KB | /mnt/Backups | Root dataset |
+| Backups/korbin | 67GB | 1.69TB | 67GB | /mnt/Backups/korbin | Korbin's backup data |
+| Backups/movies_02 | minimal | 1.69TB | minimal | /mnt/Backups/movies_02 | Interim overflow storage for movies |
+
+**Note**: `Backups/movies_02` is mounted via nullfs to `/mnt/Mir1/media/movies_2` and is accessible through the existing NFS share at `/mnt/media/movies_2` on NFS clients.
+
 To view the complete dataset structure, run:
 
 ```bash
@@ -158,4 +197,20 @@ To view performance statistics for all ZPools, run:
 zpool iostat -v
 ```
 
-*Note: This documentation is based on the zpool status, list, and zfs list outputs from April 12, 2025.*
+---
+
+## Recent Updates
+
+**October 15, 2025**:
+- Updated pool capacity information: Mir1 is now at 98% capacity (9.79TB used, 199GB free)
+- Added Backups pool documentation (1.81TB external USB storage)
+- Documented interim storage solution: nullfs mount from /mnt/Backups/movies_02 to /mnt/Mir1/media/movies_2
+- Updated dataset usage information to reflect current state
+- Added critical status warnings for nearly full datasets
+- Identified upgrade path: replace da1 and da11 (1TB drives) with 2TB drives
+
+**April 12, 2025**:
+- Initial comprehensive documentation created
+- Documented all ZPools, datasets, and physical drive layout
+
+*Last updated: October 15, 2025*

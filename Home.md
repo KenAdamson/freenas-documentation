@@ -56,6 +56,12 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 
 ## Recent Changes
 
+- **October 15, 2025**:
+  - Updated storage capacity information - Mir1 pool is now at **98% capacity (CRITICAL)**
+  - Documented Backups pool (1.81TB external USB storage)
+  - Implemented interim storage solution using nullfs mount from /mnt/Backups/movies_02 to /mnt/Mir1/media/movies_2
+  - Provides additional 1.7TB storage accessible as /mnt/media/movies_2 via NFS
+  - Identified urgent upgrade path: replace da1 and da11 (1TB drives) with 2TB NAS drives
 - **April 12, 2025**: Created comprehensive documentation including ZPools, Physical Drive Layout, SAS Expander Configuration
 - **April 12, 2025**: Added detailed drive mapping with fanout cable connections
 - **April 12, 2025**: Documented drive replacement procedures including LED blinking technique
@@ -63,4 +69,12 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 
 ---
 
-Last updated: April 12, 2025
+## Critical Alerts
+
+⚠️ **STORAGE CRITICAL (October 15, 2025)**: Mir1 pool is at 98% capacity with only 199GB free at pool level, ~71GB at dataset level. Immediate action required:
+1. **Temporary Solution Implemented**: 1.7TB overflow storage via Backups pool mounted at /mnt/media/movies_2
+2. **Permanent Solution Needed**: Replace da1 and da11 (1TB WD Blue drives) with 2TB NAS-rated drives to add ~1TB usable capacity
+
+---
+
+Last updated: October 15, 2025
