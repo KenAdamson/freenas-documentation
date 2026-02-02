@@ -149,6 +149,13 @@ This page documents common maintenance procedures for the TrueNAS server.
    smartctl -l selftest /dev/da0
    ```
 
+4. **Run Sustained I/O Stress Test**
+   For drive verification after reseating, connection troubleshooting, or vetting replacement drives, see [Drive Stress Test](Drive-Stress-Test).
+   ```
+   ./drive-stress-test.sh /dev/ada2        # 30-minute read-only test
+   ./drive-stress-test.sh --write-test /dev/ada2  # destructive write+verify
+   ```
+
 ### Checking Power Supply Status
 
 1. **View Power Supply Information**

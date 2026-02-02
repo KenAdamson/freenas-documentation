@@ -7,6 +7,7 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 - [SAS Expander Configuration](SAS-Expander-Configuration.md)
 - [Maintenance Procedures](Maintenance-Procedures.md)
 - [Troubleshooting Guide](Troubleshooting-Guide.md)
+- [Drive Stress Test](Drive-Stress-Test.md)
 
 ## Server Specifications
 
@@ -53,6 +54,7 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 | SAS Configuration | SAS expander and cable configuration | [SAS Expander Configuration](SAS-Expander-Configuration.md) |
 | Maintenance | Common maintenance procedures | [Maintenance Procedures](Maintenance-Procedures.md) |
 | Troubleshooting | Common issues and solutions | [Troubleshooting Guide](Troubleshooting-Guide.md) |
+| Drive Stress Test | Sustained I/O test for verifying drive health | [Drive Stress Test](Drive-Stress-Test.md) |
 
 ## Recent Changes
 

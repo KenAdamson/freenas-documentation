@@ -10,6 +10,7 @@ This repository contains comprehensive documentation for our TrueNAS server setu
 - [SAS Expander Configuration](SAS-Expander-Configuration.md) - SAS HBA and expander details with cable specifications
 - [Maintenance Procedures](Maintenance-Procedures.md) - Common maintenance tasks and procedures
 - [Troubleshooting Guide](Troubleshooting-Guide.md) - Solutions for common issues
+- [Drive Stress Test](Drive-Stress-Test.md) - Sustained I/O test script for drive health verification
 
 ## Using This Documentation
 
