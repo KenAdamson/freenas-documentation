@@ -133,9 +133,9 @@ if [ ! -c "$DEVICE" ]; then
 fi
 
 # Check if device is part of an ONLINE ZFS pool
-_zpool_match=$(zpool status 2>/dev/null | grep -E "ONLINE|DEGRADED|FAULTED" | grep "$DEVICE_SHORT" || true)
+_zpool_match=$(zpool status 2>/dev/null | grep -E "ONLINE|DEGRADED|FAULTED" | awk -v dev="$DEVICE_SHORT" '$0 ~ "(^|[^a-z])" dev "([^a-z0-9]|$)"' || true)
 if [ -n "$_zpool_match" ]; then
-    _pool_name=$(zpool status 2>/dev/null | grep -B100 "$DEVICE_SHORT" | grep "pool:" | tail -1 | awk '{print $2}')
+    _pool_name=$(zpool status 2>/dev/null | awk -v dev="$DEVICE_SHORT" '/pool:/ {pool=$2} $0 ~ "(^|[^a-z])" dev "([^a-z0-9]|$)" {print pool; exit}')
     log "FATAL: $DEVICE_SHORT is part of pool '$_pool_name' and is ONLINE."
     log "Offline or detach the device first:"
     log "  zpool offline $_pool_name $DEVICE_SHORT"
@@ -144,7 +144,7 @@ if [ -n "$_zpool_match" ]; then
 fi
 
 # Also check by gptid — ZFS often references drives by GPT label, not device name
-_gptids=$(glabel status 2>/dev/null | grep "$DEVICE_SHORT" | awk '{print $1}' || true)
+_gptids=$(glabel status 2>/dev/null | awk -v dev="$DEVICE_SHORT" '$NF ~ "(^|[^a-z])" dev "p[0-9]" {print $1}' || true)
 if [ -n "$_gptids" ]; then
     for _gid in $_gptids; do
         _gpt_match=$(zpool status 2>/dev/null | grep -E "ONLINE|DEGRADED" | grep "$_gid" || true)
