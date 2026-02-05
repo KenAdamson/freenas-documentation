@@ -1,231 +1,120 @@
 # Storage Expansion Plan
 
-This document outlines the phased approach to expanding storage capacity on the TrueNAS server to address the current critical storage situation (Mir1 at 98% capacity).
+This document outlines the phased approach to stabilizing and expanding storage capacity on the TrueNAS server.
 
-## Current Situation (October 2025)
+## Current Situation (February 2026)
 
-- **Mir1 ZPool**: 9.98TB total, 9.79TB used (98% full) - **CRITICAL**
-- **Available Space**: Only 199GB at pool level, ~71GB at dataset level
-- **Interim Solution**: 1.7TB overflow via Backups pool (USB drives) mounted at `/mnt/media/movies_2` and `/mnt/media/temp_2`
-- **Bottleneck Drives**: 2x 1TB WD Blue drives (da1, da11) - non-NAS rated, mechanical disks in otherwise all-SSD pool
+- **Mir1 ZPool**: ~9.98TB total, ~97% full — ONLINE but critically low on space
+- **3 Seagate ST2000LM015 failures**: All from the same 2021 Amazon batch. 4th Seagate (ada6) still running but expected to fail
+- **mirror-1**: Running on USB Seagate (temporary) + last Seagate HDD (ada6) — vulnerable
+- **mirror-3**: Running on USB WD My Passport (temporary) + WD Red Plus 2TB HDD — stable but slow
+- **mirror-6**: 2x WD Red WD10JFCX 1TB 2.5" HDDs — smallest mirrors in the pool
+- **HP SAS Expander**: Failing, all pool drives migrated to Intel/Marvell SATA controllers
+- **SMART Monitoring**: Configured with temperature thresholds, weekly short tests, monthly long tests
 
 ## Phased Expansion Plan
 
-### Phase 1: Emergency Stopgap (Immediate - October 2025)
+### Phase 1: Stabilize mirror-1 (Ordered)
 
-**Goal**: Add ~2TB usable capacity quickly using available hardware
+**Goal**: Get mirror-1 off the dying Seagate and USB drive onto reliable internal storage
 
-**Hardware**:
-- 4x 1TB 2.5" SATA drives (spinning rust, available from previous NAS generation)
-- Marvell 88SE9215 4-port SATA controller (already installed, currently unused)
-- Standard SATA cables
+**Hardware**: 1x WD Red Plus 8TB (WD80EFPX) — $210 (ordered)
 
-**Implementation**:
-1. Connect 4x 1TB SATA drives to the Marvell controller (scbus9/ahci1)
-2. Add drives as 2 new mirror vdevs to existing Mir1 ZPool:
-   - `mirror-7`: 2x 1TB drives
-   - `mirror-8`: 2x 1TB drives
-3. **Result**: +2TB usable capacity to Mir1
+**Steps**:
+1. When drive arrives, partition and attach to mirror-1
+2. Resilver onto the 8TB drive
+3. Keep USB Seagate as temporary 3rd mirror member for safety during transition
+4. Once stable, the 8TB drive + ada6 (Seagate) form mirror-1
 
-**Advantages**:
-- Immediate capacity increase
-- Uses existing hardware
-- No additional cost
-- Maintains ZFS redundancy with mirrored vdevs
-- Mechanical drives are adequate for sequential media storage
+**Result**: mirror-1 has one trustworthy drive. If ada6 dies, the 8TB WD Red holds the data safely until Phase 2.
 
-**Limitations**:
-- Drives are mechanical (slower than SSD pool)
-- No SAS expander redundancy (direct SATA connection)
-- Lower reliability than NAS-rated drives
-- **Interim solution only** - these drives will be migrated in Phase 3
+### Phase 2: Complete mirror-1 (Next Purchase Window)
 
-**Post-Phase 1 Capacity**:
-- Mir1 ZPool: 9.98TB → 11.98TB total
-- Available space: ~2TB additional
+**Goal**: Fully replace mirror-1 with WD Red Plus drives
 
-### Phase 2: Replace Bottleneck Drives (Q4 2025 / Q1 2026)
+**Hardware**: 1x WD Red Plus 8TB (WD80EFPX) — $210
 
-**Goal**: Replace non-NAS mechanical drives with proper 2TB SSDs
+**Steps**:
+1. Attach second 8TB to mirror-1
+2. Resilver
+3. Detach ada6 (last Seagate) and USB drive from mirror-1
+4. mirror-1 is now 2x 8TB WD Red Plus
 
-**Hardware Needed**:
-- 2x 2TB NAS-rated 2.5" SATA SSDs
-  - Recommended: WD Red SA500 2.5" or similar
-  - Cost: ~$100-150 per drive ($200-300 total)
+**Result**: mirror-1 is fully stable on NAS-rated drives. Pool capacity grows as ZFS expands the mirror to use the full 8TB. USB drive freed up.
 
-**Drives to Replace**:
-- **da1**: WDC WD10JFCX-68N (1TB, WD Blue, non-NAS)
-  - Location: Cage 0, Slot 1
-  - Mirror: mirror-1 with da4
-  - Fanout: 2C Port P2
-- **da11**: WDC WD10JFCX-68N (1TB, WD Blue, non-NAS)
-  - Location: Cage 0, Slot 5
-  - Mirror: mirror-3 with da1
-  - Fanout: 6C Port P1
+### Phase 3: Upgrade mirror-3 (When Budget Allows)
 
-**Implementation**:
-1. For each drive:
-   ```bash
-   # Replace da1 in mirror-1
-   zpool offline Mir1 da1
-   # Physical: Remove old drive, install new 2TB SSD
-   zpool replace Mir1 da1 /dev/da1
-   # Wait for resilver to complete
+**Goal**: Replace USB drive in mirror-3 with proper internal storage
 
-   # Replace da11 in mirror-3
-   zpool offline Mir1 da11
-   # Physical: Remove old drive, install new 2TB SSD
-   zpool replace Mir1 da11 /dev/da11
-   # Wait for resilver to complete
-   ```
+**Hardware**: 2x WD Red Plus 8TB (WD80EFPX) — $420
 
-2. ZFS will automatically resilver the new drives from their mirror partners
+**Steps**:
+1. Attach first 8TB to mirror-3, resilver
+2. Attach second 8TB to mirror-3, resilver
+3. Detach USB WD My Passport and existing WD Red Plus 2TB from mirror-3
+4. mirror-3 is now 2x 8TB WD Red Plus
 
-**Result**: +1TB usable capacity (2x 1TB → 2x 2TB in mirrored configuration)
+**Result**: mirror-3 fully internal on NAS-rated drives. Pool capacity grows again. All USB drives removed from pool.
 
-**Post-Phase 2 Capacity**:
-- Mir1 ZPool: 11.98TB → 12.98TB total
-- All drives in pool are now SSD
-- Eliminated non-NAS drives from primary pool
+### Future: SAS Expander Replacement
 
-### Phase 3: Major Expansion - Second HBA & Expander (2026)
+**Goal**: Replace failing HP SAS expander with Adaptec AEC-82885T for proper SAS-3 (12 Gb/s) backhaul
 
-**Goal**: Add significant capacity with proper redundancy and future scalability
+**Hardware**: Adaptec AEC-82885T + SFF-8643 cables
 
-**Hardware Needed**:
-1. **Second SAS HBA**: Supermicro AOC-S3008L-L8E or LSI 9300-8i
-   - Cost: ~$70-80 (used market)
-   - Provides 8 more SAS lanes with dual uplink capability
+**Steps**: See [SAS Expander Replacement](SAS-Expander-Replacement) for full details. When replaced:
+1. Remove TeamGroup T253X2001T SSD (only remaining device on HP expander)
+2. Install Adaptec AEC-82885T (direct PCIe power, no riser needed)
+3. Migrate drives from Intel/Marvell SATA controllers back to SAS expander path
+4. Full 12 Gb/s SAS-3 backhaul to all drives via LSI SAS3008 HBA
 
-2. **Second SAS Expander**: HP 487738-001 or similar 36-port expander
-   - Cost: ~$40-50 (used market)
-   - Matches existing expander configuration
+### Future: Network Upgrade
 
-3. **Cables**:
-   - 2x SFF-8643 to SFF-8087 uplink cables (HBA to expander)
-   - 3-6x SFF-8087 to SATA fanout cables (expander to drives)
-   - Cost: ~$40-60 total
+**Goal**: Upgrade to 20 Gb/s network with SFP+ NIC
 
-4. **Drive Enclosures**:
-   - 2x IcyDock MB326SP-B 6x 2.5" hot-swap cages
-   - Cost: ~$200-250 total
+**Notes**: SFP+ NIC installation planned. Will provide 20 Gb/s aggregate network bandwidth. Current pool read throughput (~422 MB/s from cache, striped across 12 drives) is well within 10 GbE capacity. The 20 Gb/s link provides headroom for concurrent workloads (Plex streaming + audio/video editing over SMB).
 
-5. **Drives**:
-   - 12x 2TB or 4TB 2.5" SATA SSDs
-   - Cost: Varies based on capacity and sales
+## Cost Summary
 
-**Total Hardware Cost**: ~$400-500 (before drives)
+| Phase | Hardware | Cost | Capacity Impact |
+|-------|----------|------|-----------------|
+| Phase 1 | 1x WD Red Plus 8TB | $210 | Stabilizes mirror-1 |
+| Phase 2 | 1x WD Red Plus 8TB | $210 | mirror-1 grows to 8TB |
+| Phase 3 | 2x WD Red Plus 8TB | $420 | mirror-3 grows to 8TB |
+| **Total** | **4x WD Red Plus 8TB** | **$840** | **+12TB usable capacity** |
 
-**Implementation**:
-1. Install second HBA in available PCIe slot (likely the x16 slot)
-2. Install second SAS expander in chassis
-3. Cable dual uplinks from HBA to expander (8C and 3C ports for redundancy)
-4. Install drive cages (may require chassis modification or external enclosure)
-5. Connect fanout cables from expander to drive cages
-6. Migrate the 4x 1TB SATA drives from Phase 1 to the new cages
-   - This converts them from direct SATA to SAS expander connection
-   - Provides redundant paths and better integration
-7. Add 8 more drives to fill out the cages
-8. Create new mirror vdevs and add to Mir1 (or create Mir2 pool)
+## SSD Migration (On Hold)
 
-**Result**: +12-24TB additional capacity (depending on drive sizes chosen)
+Mirrors 0, 4, and 5 are already fully SSD (WD Red SA500 / WDS200T1R0A 2TB). An all-SSD pool would eliminate noise, reduce power draw and heat, and improve random IO latency for editing workloads over SMB.
 
-**Post-Phase 3 Capacity**:
-- Option A: Expand Mir1 with new vdevs
-  - Mir1 ZPool: 12.98TB → 24.98TB+ total (with 12x 2TB drives)
-- Option B: Create new Mir2 pool
-  - Keep Mir1 at 12.98TB
-  - New Mir2: ~12TB (with 12x 2TB drives in 6 mirrors)
-  - Allows separation of workloads and datasets
+However, the WD Red SA500 SATA SSD line is being discontinued and prices have spiked due to AI data center demand consuming NAND flash supply:
+- 1TB WD Red SA500: $288 ($288/TB)
+- 2TB WD Red SA500: unavailable
+- 8TB WD Red SA500: $850 ($106/TB)
 
-**Configuration Benefits**:
-- Dual HBA setup provides separation and fault isolation
-- Each HBA + expander can operate independently
-- Maintains dual uplink redundancy on both channels
-- Scalable to 24+ drives with proper cabling
-- Hot-swap capability with IcyDock cages
+SSD migration is not economical at current pricing. The mechanical drives in mirrors 1, 3, and 6 do not bottleneck the primary workload (Plex streaming, file serving over 10 GbE). For the audio/video editing workload, ZFS striping across all mirrors means the SSD mirrors handle the latency-sensitive random IO while the HDDs contribute sequential bandwidth.
 
-## Current Interim Solutions (Active)
+## Seagate ST2000LM015 Failure History
 
-While planning the above phases, these solutions are in place:
+All four drives were 2.5" laptop HDDs (non-NAS rated) purchased from the same Amazon listing in 2021:
 
-### Backups Pool Overflow Storage
-- **Location**: `/mnt/Backups/movies_02` and `/mnt/Backups/temp_02`
-- **Mount Points**:
-  - `/mnt/Mir1/media/movies_2` (via nullfs)
-  - `/mnt/Mir1/media/temp_2` (via nullfs)
-- **Access**: Available through NFS as `/mnt/media/movies_2` and `/mnt/media/temp_2`
-- **Capacity**: 1.7TB available
-- **Purpose**: Temporary overflow for downloads and media
-- **Connection**: USB 3.0 external drives in ZFS mirror
-- **Limitation**: 1GbE transfer speed bottleneck
+| Serial | Failure | Date |
+|--------|---------|------|
+| (removed) | Dead, pulled from system | Jan 2026 |
+| ZDZFEZSH | Dead, pulled from system | Jan 2026 |
+| (ada3/faulted) | FAULTED with 185 read / 1.63K write / 568 cksum errors, replaced by USB drive | Feb 2026 |
+| ZDZFEZNY (ada6) | Still running, expected to fail | — |
 
-### External Criterion Drive
-- **Location**: `/mnt/criterion`
-- **Capacity**: 2.8TB XFS (USB 3.0 external drive)
-- **Purpose**: Temporary storage for active downloads
-- **Status**: Currently being migrated away from to use Backups pool instead
-
-## Timeline Recommendations
-
-| Phase | Target Date | Cost | Capacity Gain | Priority |
-|-------|-------------|------|---------------|----------|
-| Phase 1: 4x 1TB SATA | Immediate | $0 (existing drives) | +2TB | **URGENT** |
-| Phase 2: Replace 1TB drives | Q1 2026 | ~$250 | +1TB | High |
-| Phase 3: Second HBA/Expander | Q2-Q3 2026 | ~$400-500 + drives | +12-24TB | Medium |
-
-## Success Metrics
-
-**Phase 1 Success**:
-- Mir1 pool drops below 85% capacity
-- All active downloads can complete without space issues
-- Backups pool can be reserved for actual backups
-
-**Phase 2 Success**:
-- All drives in main pool are SSD
-- No more non-NAS rated drives in production
-- Pool performance improves (no mechanical drive bottleneck)
-
-**Phase 3 Success**:
-- Total storage capacity exceeds 20TB usable
-- Dual HBA configuration provides better throughput and redundancy
-- Phase 1 SATA drives successfully migrated to proper expander connection
-- Hot-swap capability fully implemented
-
-## Alternative Considerations
-
-### Option: Replace Phase 1 drives with larger SSDs instead of mechanical
-- **Pros**: Better performance, more reliable
-- **Cons**: Higher cost (~$400 for 4x 2TB SSDs)
-- **Verdict**: Not recommended - mechanical drives adequate for Phase 1 stopgap
-
-### Option: Skip Phase 2, go straight to Phase 3
-- **Pros**: Fewer steps, more capacity sooner
-- **Cons**: Higher upfront cost, longer timeline for critical relief
-- **Verdict**: Not recommended - Phase 1 provides immediate relief at no cost
-
-### Option: Use Backups pool permanently instead of Phase 1
-- **Pros**: No hardware work required
-- **Cons**: USB 3.0 performance limitations, not integrated into main pool
-- **Verdict**: Current approach (using both) is optimal
-
-## Notes
-
-- All phases maintain ZFS redundancy (mirrors)
-- Hot-swap procedures documented in Physical-Drive-Layout.md
-- Drive replacement procedures documented in Physical-Drive-Layout.md
-- Keep stock of spare drives for any failures during transitions
-- Test resilver times before committing to large migrations
-- Phase 3 may require chassis modifications for additional drive cage mounting
+**Lesson learned**: Non-NAS-rated laptop drives from bulk Amazon listings are not suitable for 24/7 NAS operation. All replacements are NAS-rated (WD Red Plus).
 
 ## Related Documentation
 
-- [ZPools Overview](ZPools.md) - Current pool configuration
-- [Physical Drive Layout](Physical-Drive-Layout.md) - Drive locations and mappings
-- [SAS Expander Configuration](SAS-Expander-Configuration.md) - Current HBA/expander setup
-- [Maintenance Procedures](Maintenance-Procedures.md) - Drive replacement procedures
+- [ZPools Overview](ZPools) - Current pool configuration and drive mapping
+- [Physical Drive Layout](Physical-Drive-Layout) - Drive locations and connections
+- [SAS Expander Replacement](SAS-Expander-Replacement) - Failing expander diagnosis and replacement plan
+- [Maintenance Procedures](Maintenance-Procedures) - SMART monitoring, drive replacement procedures
 
 ---
 
 *Created: October 15, 2025*
-*Last Updated: October 15, 2025*
+*Last Updated: February 5, 2026*

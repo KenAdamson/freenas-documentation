@@ -4,68 +4,86 @@ This page documents all ZPools configured on the TrueNAS server, including their
 
 ## ZPool Overview
 
-| ZPool Name | Size | Allocated | Free | Capacity | Dedup | Status | Last Scrub | Purpose |
-|------------|------|-----------|------|----------|-------|--------|------------|---------|
-| Mir1       | 9.98TB | 9.79TB | 199GB | 98% | 1.25x | ONLINE | September 21, 2025 | Primary data storage |
-| Backups    | 1.81TB | 67GB | 1.75TB | 3% | 1.00x | ONLINE | August 11, 2025 | External USB backup storage |
-| freenas-boot | 55.5GB | 20.3GB | 35.2GB | 36% | 1.00x | ONLINE | April 9, 2025 | System boot pool |
+| ZPool Name | Size | Allocated | Free | Capacity | Dedup | Status | Last Resilver | Purpose |
+|------------|------|-----------|------|----------|-------|--------|---------------|---------|
+| Mir1       | 9.98TB | 9.78TB | ~200GB | 97% | 1.25x | ONLINE | Feb 4, 2026 (1.78T, 0 errors) | Primary data storage |
+| Backups    | 1.81TB | 67GB | 1.75TB | 3% | 1.00x | ONLINE | Aug 11, 2025 | External USB backup storage |
+| freenas-boot | 55.5GB | 20.3GB | 35.2GB | 36% | 1.00x | ONLINE | Apr 9, 2025 | System boot pool |
 
 ## Detailed ZPool Configuration
 
 ### Mir1 (Primary Storage)
 
-**Configuration**: 6 mirror vdevs with 2 drives each, plus a cache device
-**Size**: 9.98TB total (9.79TB used, 199GB free, 98% capacity)
+**Configuration**: 6 mirror vdevs with 2 drives each, plus L2ARC cache
+**Size**: 9.98TB total (~97% capacity)
 **Deduplication Ratio**: 1.25x
-**Fragmentation**: 64%
-**Status**: ONLINE - **CRITICAL: Pool is 98% full**
-**Last Scrub**: Completed on Sun Sep 21 12:58:34 2025 (repaired 0B in 12:58:33 with 0 errors)
+**Status**: ONLINE
+**Last Resilver**: Completed Wed Feb 4 10:54:17 2026 (resilvered 1.78T in 13:14:39, 0 errors)
+
+**Current Drive Topology**:
+- **Mirrors 0, 4, 5**: WD Red SA500 / WDS200T1R0A 2TB SATA SSDs (fully solid-state)
+- **Mirror 1**: 1x USB Seagate (temporary) + 1x ST2000LM015 Seagate 2TB HDD (last surviving Seagate, expected to fail)
+- **Mirror 3**: 1x USB WD My Passport (temporary) + 1x WD Red Plus WD20EFPX 2TB 3.5" HDD
+- **Mirror 6**: 2x WD Red WD10JFCX 1TB 2.5" HDDs
 
 **Current Issues**:
-- Pool is critically full at 98% capacity
-- Only 199GB free at pool level, ~71GB available at dataset level
-- Requires immediate attention: replace 1TB drives (da1, da11) with 2TB drives
+- Pool remains at ~97% capacity
+- mirror-1 and mirror-3 each have one USB drive as a temporary member
+- mirror-1's Seagate ST2000LM015 is the last of a batch of 4 that all failed; expected to die soon
+- mirror-6 has 1TB drives (smallest mirrors in the pool)
+- 1x 8TB WD Red Plus ordered to begin replacing mirror-1's temporary drives
 
-#### mirror-0
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde | ONLINE | 0 | 0 | 0 |
-| gptid/4cffd486-d1af-11ef-8a75-b496913a6fde | ONLINE | 0 | 0 | 0 |
+**Recent Events (January-February 2026)**:
+- HP SAS expander diagnosed as failing; all pool drives migrated to Intel/Marvell SATA controllers
+- 3x Seagate ST2000LM015 2TB drives failed (from same 2021 Amazon batch)
+- USB drives pressed into emergency service for mirror-1 and mirror-3
+- SMART monitoring configured with proper thresholds and scheduled tests
 
-#### mirror-1
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/017ac5ca-9656-11eb-bb15-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
-| gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
+#### mirror-0 (SSD)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde | ada1 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
+| gptid/4cffd486-d1af-11ef-8a75-b496913a6fde | ada11 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
 
-#### mirror-3
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/0f3f574a-9748-11eb-bb15-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
-| gptid/dea802f8-9655-11eb-bb15-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
+#### mirror-1 (HDD + USB, temporary)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| da5p1 | da4 (USB) | Seagate BUP Slim (USB 3.0) | ONLINE | 0 | 0 | 0 |
+| gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 | ada6 | ST2000LM015 Seagate 2TB HDD | ONLINE | 0 | 0 | 0 |
 
-#### mirror-4
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/4b17ad79-13e6-11ef-af29-b496913a6fde | ONLINE | 0 | 0 | 0 |
-| gptid/f613b9f9-1407-11ef-af29-b496913a6fde | ONLINE | 0 | 0 | 0 |
+#### mirror-3 (HDD + USB, temporary)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/e867be29-ed8c-11f0-9c07-b496913a6fde | da3 (USB) | WD My Passport (USB 3.0) | ONLINE | 0 | 0 | 0 |
+| ada8p2 | ada7 | WD Red Plus WD20EFPX 2TB 3.5" HDD | ONLINE | 0 | 0 | 0 |
 
-#### mirror-5
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/b9bb4736-6a05-11ee-8632-b496913a6fde | ONLINE | 0 | 0 | 0 |
-| gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde | ONLINE | 0 | 0 | 0 |
+#### mirror-4 (SSD)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/4b17ad79-13e6-11ef-af29-b496913a6fde | ada2 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
+| gptid/f613b9f9-1407-11ef-af29-b496913a6fde | ada10 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
 
-#### mirror-6
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde | ONLINE | 0 | 0 | 0 |
-| gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde | ONLINE | 0 | 0 | 0 |
+#### mirror-5 (SSD)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/b9bb4736-6a05-11ee-8632-b496913a6fde | ada9 | WDC WDS200T1R0A 2TB SSD | ONLINE | 0 | 0 | 0 |
+| gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde | ada0 | WDC WDS200T1R0A 2TB SSD | ONLINE | 0 | 0 | 0 |
 
-#### Cache Device
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/21b92d71-98b9-11eb-8ea4-d45d643eabc1 | ONLINE | 0 | 0 | 0 |
+#### mirror-6 (HDD)
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde | ada8 | WD Red WD10JFCX 1TB 2.5" HDD | ONLINE | 0 | 0 | 0 |
+| gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde | ada3 | WD Red WD10JFCX 1TB 2.5" HDD | ONLINE | 0 | 0 | 0 |
+
+#### L2ARC Cache
+| Drive | Device | Model | State | Read | Write | Cksum |
+|-------|--------|-------|-------|------|-------|-------|
+| gptid/21b92d71-98b9-11eb-8ea4-d45d643eabc1 | ada5 | Samsung SSD 840 EVO 250GB | ONLINE | 0 | 0 | 0 |
+
+#### Non-Pool Drive on SAS Expander
+| Device | Model | Notes |
+|--------|-------|-------|
+| da0 | TEAM T253X2001T 1TB SSD | Connected via failing HP SAS expander. Not in any pool. Windows partition table. To be removed during expander replacement. |
 
 ### Backups (External USB Storage)
 
@@ -199,18 +217,37 @@ zpool iostat -v
 
 ---
 
+## Drive Controller Topology
+
+Since January 2026, all pool drives have been migrated off the failing HP SAS expander onto direct SATA controllers:
+
+| Controller | Bus | Drives | Notes |
+|------------|-----|--------|-------|
+| Intel Cannon Lake PCH SATA | scbus1-8, scbus10 | ada0-ada6 | Onboard, 6 Gb/s per port |
+| Marvell 88SE9215 | scbus12-13 | ada7-ada12 | PCIe, 3 direct ports + 1 port multiplier (5 ports) |
+| HP SAS Expander (via LSI HBA) | scbus0 | da0 only | Failing. Only non-pool TeamGroup SSD remains connected |
+| USB | scbus14-17 | da1-da4 | Temporary pool members (da3 in mirror-3, da4 in mirror-1) |
+
+**Note**: Device names (ada#, da#) may shift across reboots or drive events. ZFS tracks drives by GPTID internally. The device names shown in `zpool status` reflect the name at the time the drive was added or last replaced.
+
 ## Recent Updates
 
+**February 4, 2026**:
+- Pool is ONLINE after series of drive failures and resilvers
+- 3x Seagate ST2000LM015 drives failed and removed (from same 2021 batch)
+- Faulted ada3 (Seagate) replaced by USB Seagate in mirror-1 via `zpool replace`
+- USB WD My Passport serving as temporary member of mirror-3
+- All drives migrated off failing HP SAS expander to Intel/Marvell SATA
+- SMART monitoring configured: temperature thresholds, weekly short tests, monthly long tests
+- 1x 8TB WD Red Plus WD80EFPX ordered for mirror-1 upgrade
+
 **October 15, 2025**:
-- Updated pool capacity information: Mir1 is now at 98% capacity (9.79TB used, 199GB free)
+- Updated pool capacity information
 - Added Backups pool documentation (1.81TB external USB storage)
-- Documented interim storage solution: nullfs mount from /mnt/Backups/movies_02 to /mnt/Mir1/media/movies_2
-- Updated dataset usage information to reflect current state
-- Added critical status warnings for nearly full datasets
-- Identified upgrade path: replace da1 and da11 (1TB drives) with 2TB drives
+- Documented interim storage solution: nullfs mount for overflow storage
+- Identified upgrade path for 1TB drives
 
 **April 12, 2025**:
 - Initial comprehensive documentation created
-- Documented all ZPools, datasets, and physical drive layout
 
-*Last updated: October 15, 2025*
+*Last updated: February 5, 2026*

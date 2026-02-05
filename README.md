@@ -12,6 +12,7 @@ This repository contains comprehensive documentation for our TrueNAS server setu
 - [Troubleshooting Guide](Troubleshooting-Guide.md) - Solutions for common issues
 - [Drive Stress Test](Drive-Stress-Test.md) - Sustained I/O test script for drive health verification
 - [SAS Expander Replacement](SAS-Expander-Replacement.md) - Diagnosis of failing HP SAS expander and replacement plan
+- [Storage Expansion Plan](Storage-Expansion-Plan.md) - Phased drive replacement and capacity upgrade strategy
 
 ## Using This Documentation
 
@@ -31,4 +32,4 @@ To update this documentation locally before pushing to GitHub:
 
 ## Last Updated
 
-April 12, 2025
+February 5, 2026

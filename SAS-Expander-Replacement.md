@@ -140,8 +140,9 @@ camcontrol devlist | grep -i "exp"
 
 ## Current Status
 
-- **Pool drives**: All migrated off the SAS expander. Mirrors split across Intel motherboard SATA (ch0-5) and Marvell 88SE9215 (ch8-10 direct + PM ports).
-- **Expander**: Still installed with 2 non-pool test drives (da0 TOSHIBA 466GB, da1 HGST 466GB). Functional for light use but unreliable under sustained load.
+- **Pool drives**: All migrated off the SAS expander. Mirrors split across Intel motherboard SATA and Marvell 88SE9215 (3 direct ports + port multiplier).
+- **Expander**: Still installed. Only 1 non-pool drive remains: TeamGroup T253X2001T 1TB SSD (da0) with a Windows partition table. The TOSHIBA and HGST test drives have been removed.
+- **TeamGroup SSD**: Connected via SAS expander, negotiating at 3.0 Gb/s (half rate). Drive tested poorly and is considered unreliable. Will be removed when the expander is replaced or during SFP+ NIC installation (whichever comes first).
 - **Action needed**: Order Adaptec AEC-82885T + SFF-8643 cables before expanding back onto the SAS path.
 
-*Last updated: February 2, 2026*
+*Last updated: February 5, 2026*

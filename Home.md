@@ -9,6 +9,7 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 - [Troubleshooting Guide](Troubleshooting-Guide.md)
 - [Drive Stress Test](Drive-Stress-Test.md)
 - [SAS Expander Replacement](SAS-Expander-Replacement.md)
+- [Storage Expansion Plan](Storage-Expansion-Plan.md)
 
 ## Server Specifications
 
@@ -57,28 +58,38 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 | Troubleshooting | Common issues and solutions | [Troubleshooting Guide](Troubleshooting-Guide.md) |
 | Drive Stress Test | Sustained I/O test for verifying drive health | [Drive Stress Test](Drive-Stress-Test.md) |
 | SAS Expander Replacement | Diagnosis of failing expander and replacement plan | [SAS Expander Replacement](SAS-Expander-Replacement.md) |
+| Storage Expansion Plan | Phased drive replacement and capacity upgrade strategy | [Storage Expansion Plan](Storage-Expansion-Plan.md) |
 
 ## Recent Changes
 
-- **October 15, 2025**:
-  - Updated storage capacity information - Mir1 pool is now at **98% capacity (CRITICAL)**
-  - Documented Backups pool (1.81TB external USB storage)
-  - Implemented interim storage solution using nullfs mount from /mnt/Backups/movies_02 to /mnt/Mir1/media/movies_2
-  - Provides additional 1.7TB storage accessible as /mnt/media/movies_2 via NFS
-  - Identified urgent upgrade path: replace da1 and da11 (1TB drives) with 2TB NAS drives
-- **April 12, 2025**: Created comprehensive documentation including ZPools, Physical Drive Layout, SAS Expander Configuration
-- **April 12, 2025**: Added detailed drive mapping with fanout cable connections
-- **April 12, 2025**: Documented drive replacement procedures including LED blinking technique
-- **April 12, 2025**: Added cable specifications and performance considerations
+- **February 4-5, 2026**:
+  - Pool is ONLINE after emergency drive failures and resilvers
+  - 3x Seagate ST2000LM015 drives failed (from same 2021 Amazon batch); all removed
+  - USB drives pressed into emergency service for mirror-1 and mirror-3
+  - All pool drives migrated off failing HP SAS expander to Intel/Marvell SATA controllers
+  - SMART monitoring configured: temperature thresholds (10/40/50°C), weekly short tests, monthly long tests
+  - Ordered 1x WD Red Plus 8TB (WD80EFPX) for mirror-1 stabilization
+  - Updated storage expansion plan: 4x 8TB WD Red Plus staged over time ($840 total)
+- **February 2, 2026**: HP SAS expander diagnosed as failing (PMC Sierra SAS2x36 chip degradation). See [SAS Expander Replacement](SAS-Expander-Replacement.md)
+- **October 15, 2025**: Documented critical storage capacity (98% full) and interim overflow solution
+- **April 12, 2025**: Initial comprehensive documentation created
 
 ---
 
-## Critical Alerts
+## Current Status
 
-⚠️ **STORAGE CRITICAL (October 15, 2025)**: Mir1 pool is at 98% capacity with only 199GB free at pool level, ~71GB at dataset level. Immediate action required:
-1. **Temporary Solution Implemented**: 1.7TB overflow storage via Backups pool mounted at /mnt/media/movies_2
-2. **Permanent Solution Needed**: Replace da1 and da11 (1TB WD Blue drives) with 2TB NAS-rated drives to add ~1TB usable capacity
+**Pool**: Mir1 is ONLINE at ~97% capacity. All 6 mirrors operational, no errors.
+
+**Temporary measures in place**:
+- mirror-1: USB Seagate drive + last surviving Seagate HDD (ada6, expected to fail)
+- mirror-3: USB WD My Passport + WD Red Plus 2TB HDD
+- 1.7TB overflow storage via Backups pool (nullfs mount at /mnt/media/movies_2)
+
+**Pending hardware**:
+- 1x WD Red Plus 8TB ordered for mirror-1 (Phase 1 of [Storage Expansion Plan](Storage-Expansion-Plan.md))
+- Adaptec AEC-82885T SAS expander needed to replace failing HP expander
+- SFP+ NIC for 20 Gb/s network upgrade
 
 ---
 
-Last updated: October 15, 2025
+Last updated: February 5, 2026
