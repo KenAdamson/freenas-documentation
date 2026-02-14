@@ -10,6 +10,7 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 - [Drive Stress Test](Drive-Stress-Test.md)
 - [SAS Expander Replacement](SAS-Expander-Replacement.md)
 - [Storage Expansion Plan](Storage-Expansion-Plan.md)
+- [Media Services](Media-Services.md)
 
 ## Server Specifications
 
@@ -59,6 +60,7 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 | Drive Stress Test | Sustained I/O test for verifying drive health | [Drive Stress Test](Drive-Stress-Test.md) |
 | SAS Expander Replacement | Diagnosis of failing expander and replacement plan | [SAS Expander Replacement](SAS-Expander-Replacement.md) |
 | Storage Expansion Plan | Phased drive replacement and capacity upgrade strategy | [Storage Expansion Plan](Storage-Expansion-Plan.md) |
+| Media Services | Plex media server stack, services, and P520 migration | [Media Services](Media-Services.md) |
 
 ## Recent Changes
 
@@ -89,7 +91,8 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 - 1x WD Red Plus 8TB ordered for mirror-1 (Phase 1 of [Storage Expansion Plan](Storage-Expansion-Plan.md))
 - Adaptec AEC-82885T SAS expander needed to replace failing HP expander
 - SFP+ NIC for 20 Gb/s network upgrade
+- Lenovo ThinkStation P520 + Mellanox ConnectX-3 Pro ordered (see [Media Services](Media-Services.md))
 
 ---
 
-Last updated: February 5, 2026
+Last updated: February 14, 2026

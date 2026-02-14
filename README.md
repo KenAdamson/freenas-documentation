@@ -13,6 +13,7 @@ This repository contains comprehensive documentation for our TrueNAS server setu
 - [Drive Stress Test](Drive-Stress-Test.md) - Sustained I/O test script for drive health verification
 - [SAS Expander Replacement](SAS-Expander-Replacement.md) - Diagnosis of failing HP SAS expander and replacement plan
 - [Storage Expansion Plan](Storage-Expansion-Plan.md) - Phased drive replacement and capacity upgrade strategy
+- [Media Services](Media-Services.md) - Plex media server stack, services, and hardware migration plan
 
 ## Using This Documentation
 
@@ -32,4 +33,4 @@ To update this documentation locally before pushing to GitHub:
 
 ## Last Updated
 
-February 5, 2026
+February 14, 2026
