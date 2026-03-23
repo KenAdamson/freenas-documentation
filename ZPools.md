@@ -80,6 +80,38 @@ This page documents all ZPools configured on the TrueNAS server, including their
 |-------|--------|-------|-------|------|-------|-------|
 | gptid/21b92d71-98b9-11eb-8ea4-d45d643eabc1 | ada5 | Samsung SSD 840 EVO 250GB | ONLINE | 0 | 0 | 0 |
 
+#### SLOG (ZFS Intent Log) — MISSING
+
+The pool previously had a SATA SSD serving as a SLOG device, which has since died and been removed. Without a SLOG, NFS synchronous writes commit directly to the pool's spinning rust drives, bottlenecking write throughput at ~76 MB/s despite the 20 Gbps LACP bond to the P520.
+
+**Replacement ordered (March 2026):**
+- **Intel Optane M10 32GB** (MEMPEK1J032GAL)
+- M.2 2280, PCIe 3.0 x2, 3D XPoint NVMe
+- eBay #186010961050 (os_dske seller, NOS from China, ~3 week shipping)
+- Will install in ASUS WS C246 PRO M.2_2 slot (PCIe Gen3 x2, ideal for Optane)
+
+**Why Optane is ideal for SLOG:**
+- 3D XPoint has ~10 microsecond write latency vs ~100+ for NAND flash
+- SLOG only holds a few seconds of in-flight sync writes (~MBs, not GBs) — 32GB is vastly more than needed
+- Optane write endurance is orders of magnitude higher than NAND
+- Perfect match for the small, latency-sensitive ZIL workload
+
+**Installation steps:**
+```bash
+# Identify the Optane device after physical install
+camcontrol devlist   # or nvmecontrol devlist
+
+# Partition for ZFS
+gpart create -s GPT <device>
+gpart add -t freebsd-zfs <device>
+
+# Add as SLOG to pool
+zpool add Mir1 log <partition>
+
+# Verify
+zpool status Mir1   # should show "logs" section
+```
+
 #### Non-Pool Drive on SAS Expander
 | Device | Model | Notes |
 |--------|-------|-------|
@@ -250,4 +282,13 @@ Since January 2026, all pool drives have been migrated off the failing HP SAS ex
 **April 12, 2025**:
 - Initial comprehensive documentation created
 
-*Last updated: February 5, 2026*
+**March 1, 2026**:
+- mirror-1 upgraded: 2x 8TB Seagate IronWolf ST8000VN004 (replaced USB Seagate + failing ST2000LM015)
+- mirror-1 now has ~7.25TB free — absorbing bulk of new writes due to ZFS free-space allocation
+- Resilver completed Mar 1 04:18:55 2026 (352M in 00:00:29, 0 errors)
+- Dead SLOG identified as cause of slow NFS writes (~76 MB/s over 20 Gbps LACP)
+- Intel Optane M10 32GB ordered as SLOG replacement (eBay, ~3 week ETA from China)
+- rsync modules "media" and "backups" added for efficient file transfer
+- Batch transcode pipeline created to re-encode 4K remuxes >50GB via Arc A770 VAAPI
+
+*Last updated: March 2, 2026*

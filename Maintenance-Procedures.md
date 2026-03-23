@@ -6,42 +6,11 @@ This page documents common maintenance procedures for the TrueNAS server.
 
 | Task | Frequency | Description |
 |------|-----------|-------------|
-| SMART Short Test | Weekly (Sun 2am) | Run short SMART tests on all disks |
-| SMART Long Test | Monthly (1st, 3am) | Run extended SMART tests on all disks |
+| SMART Tests | Weekly | Run short SMART tests weekly and long tests monthly |
 | ZPool Scrub | Monthly | Verify data integrity and repair any corrupted data |
 | Snapshots | Daily | Create and manage automated snapshots |
 | Backup Verification | Monthly | Verify backup integrity |
 | System Updates | Quarterly | Apply TrueNAS updates after testing |
-
-## SMART Monitoring Configuration
-
-Configured via TrueNAS middleware on February 4, 2026. Previously, SMART tests were enabled but all alert thresholds were set to zero (disabled), meaning no proactive warnings were generated even as drives degraded.
-
-### Temperature Thresholds
-
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Polling Interval | 30 min | How often smartd checks drive attributes |
-| Difference | 10°C | Alert on temperature change of 10°C or more |
-| Informational | 40°C | Informational alert at 40°C |
-| Critical | 50°C | Critical alert at 50°C |
-
-### Scheduled Tests
-
-| Test | Schedule | Scope |
-|------|----------|-------|
-| SHORT | Every Sunday at 2:00 AM | All disks |
-| LONG | 1st of every month at 3:00 AM | All disks |
-
-### Limitations
-
-TrueNAS SMART monitoring relies on manufacturer-set attribute thresholds (e.g., reallocated sector count). These thresholds are typically set very conservatively by drive manufacturers to minimize warranty claims. TrueNAS does not support custom per-attribute thresholds (e.g., "alert if reallocated sectors > 5") through its middleware.
-
-**Recommendation**: Periodically review SMART attributes manually via `smartctl -a /dev/<device>`, particularly for:
-- **Reallocated_Sector_Ct** (ID 5): Any non-zero value warrants attention
-- **Current_Pending_Sector** (ID 197): Sectors waiting to be remapped
-- **Offline_Uncorrectable** (ID 198): Sectors that failed during offline tests
-- **UDMA_CRC_Error_Count** (ID 199): Cable or connector issues
 
 ## Drive Replacement Procedure
 
@@ -226,3 +195,33 @@ TrueNAS SMART monitoring relies on manufacturer-set attribute thresholds (e.g., 
    ```
 
 *Note: This is a template. Please replace with your actual maintenance procedures.*
+
+## Cooling Configuration (Updated 2026-03-23)
+
+### Chassis: Thermaltake W100
+
+- **Top exhaust**: 4x 120mm fans, set to max speed
+- **Rear intake**: 1x 120mm be quiet! Silent Wings Pro 4 (FDB bearing, replaced failed original chassis fan)
+- **Front**: Passive intake through drive bays (negative pressure pulls air in)
+- **Airflow**: Negative pressure configuration — cool air enters through drive bays and rear, exhausts through top
+
+### Optane SLOG Cooler
+
+- **Device**: Intel MEMPEK1J032GAH (32GB M.2 Optane) — used as ZFS SLOG for Mir1 pool
+- **Cooler**: Active M.2 heatsink with fan, set to max speed
+- **Note**: The NVMe cooler fan uses sleeve bearings — monitor for bearing failure over time. Optane runs 31-47°C depending on write load.
+
+### Temperature Baselines (idle / under load)
+
+| Component | Idle | Load | Notes |
+|-----------|------|------|-------|
+| Optane SLOG (nvd0) | ~31°C | ~47°C | Active cooler, max fan |
+| WD Red SA500 SSDs | 28-35°C | 39-43°C | Hottest components under sustained I/O |
+| Spinners (WD Red, Seagate) | 25-30°C | 26-37°C | Adequate airflow from negative pressure |
+
+### Fan Replacement Notes
+
+- All chassis fan slots use 120mm fans
+- Require fluid-dynamic bearing (FDB) fans for 24/7 NAS operation — sleeve bearings will fail prematurely
+- be quiet! Silent Wings Pro 4 confirmed compatible as replacement
+- BIOS does not expose PWM control via sysctl/IPMI — fan curves must be set in BIOS or via standalone PWM controller

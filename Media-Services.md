@@ -204,21 +204,30 @@ Local 3.5" drive bays available for scratch/batch storage during encoding workfl
 - [ ] Repurpose Beelink for lab use
 - [ ] Return Sabrent NT-C5GA (Realtek RTL8157 — not as advertised)
 
-### Parts Ordered
+### Parts Installed
 
-| # | Component | Model | Price | Source |
+| # | Component | Model | Price | Source | Status |
+|---|-----------|-------|------:|--------|--------|
+| 1 | Workstation | Lenovo ThinkStation P520 (W-2135, 690W PSU) | $250.00 | eBay | Installed |
+| 2 | RAM (stick 1) | Samsung 16GB DDR4-2666 ECC RDIMM | $45.00 | eBay | Installed |
+| 3 | RAM (stick 2) | Samsung 16GB DDR4-2666 ECC RDIMM | $45.00 | eBay | In transit |
+| 4 | NIC | Mellanox ConnectX-3 Pro MCX312C-XCCT (dual 10GbE SFP+) | $17.45 | eBay | Installed |
+| 5 | Intel Arc A770 16GB | Hardware transcoding GPU | — | Already owned | Installed |
+| 6 | 1 TB NVMe SSD | Swap from Beelink | — | Already owned | Installed |
+| | **Total purchased** | | **$357.45** | | |
+
+### Parts To Buy
+
+| # | Component | Model | Est. Price | Source |
 |---|-----------|-------|------:|--------|
-| 1 | Workstation | Lenovo ThinkStation P520 (W-2135, 690W PSU) | $250.00 | eBay |
-| 2 | RAM | Samsung 16GB DDR4-2666 ECC RDIMM | $90.00 | eBay |
-| 3 | NIC | Mellanox ConnectX-3 Pro MCX312C-XCCT (dual 10GbE SFP+) | $17.45 | eBay |
-| | **Total** | | **$357.45** | |
+| 1 | BD Drive | LG WH16NS40 (UHD-friendly, flash to UHD-capable firmware) | ~$60 | eBay |
+| 2 | CPU Upgrade | Intel Xeon W-2195 (18c/36t, 2.3/4.3 GHz, LGA-2066) | ~$540-800 | eBay |
+| 3 | ML GPU | NVIDIA A10 (24 GB GDDR6, 150W, Ampere) — training + inference | ~$400-500 | eBay |
 
-### Already Owned
+### Other Equipment
 
 | Item | Notes |
 |------|-------|
-| Intel Arc A770 16GB | Hardware transcoding GPU |
-| 1 TB NVMe SSD | Swap from Beelink |
 | MikroTik CRS305-1G-4S+IN | 10GbE aggregation switch |
 | SFP+ DAC cables / transceivers | Verify stock, may need 1-2 more |
 

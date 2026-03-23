@@ -9,15 +9,13 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 - [Troubleshooting Guide](Troubleshooting-Guide.md)
 - [Drive Stress Test](Drive-Stress-Test.md)
 - [SAS Expander Replacement](SAS-Expander-Replacement.md)
-- [Storage Expansion Plan](Storage-Expansion-Plan.md)
-- [Media Services](Media-Services.md)
 
 ## Server Specifications
 
 - **System Manufacturer**: ASUSTeK COMPUTER INC.
 - **Product Name**: System Product Name
 - **System Family**: Server
-- **TrueNAS version**: TrueNAS-12.0-U8 (based on FreeBSD)
+- **TrueNAS version**: TrueNAS-13.0-U6.8 (FreeBSD 13.1-RELEASE-p9)
 - **CPU**: Intel(R) Core(TM) i3-8100 CPU @ 3.60GHz
 - **RAM**: 32 GB (2x 16GB modules)
 - **Physical Memory**: 31.74 GB (34,086,277,120 bytes)
@@ -59,40 +57,34 @@ Welcome to the comprehensive documentation for our TrueNAS server. This wiki con
 | Troubleshooting | Common issues and solutions | [Troubleshooting Guide](Troubleshooting-Guide.md) |
 | Drive Stress Test | Sustained I/O test for verifying drive health | [Drive Stress Test](Drive-Stress-Test.md) |
 | SAS Expander Replacement | Diagnosis of failing expander and replacement plan | [SAS Expander Replacement](SAS-Expander-Replacement.md) |
-| Storage Expansion Plan | Phased drive replacement and capacity upgrade strategy | [Storage Expansion Plan](Storage-Expansion-Plan.md) |
-| Media Services | Plex media server stack, services, and P520 migration | [Media Services](Media-Services.md) |
 
 ## Recent Changes
 
-- **February 4-5, 2026**:
-  - Pool is ONLINE after emergency drive failures and resilvers
-  - 3x Seagate ST2000LM015 drives failed (from same 2021 Amazon batch); all removed
-  - USB drives pressed into emergency service for mirror-1 and mirror-3
-  - All pool drives migrated off failing HP SAS expander to Intel/Marvell SATA controllers
-  - SMART monitoring configured: temperature thresholds (10/40/50°C), weekly short tests, monthly long tests
-  - Ordered 1x WD Red Plus 8TB (WD80EFPX) for mirror-1 stabilization
-  - Updated storage expansion plan: 4x 8TB WD Red Plus staged over time ($840 total)
-- **February 2, 2026**: HP SAS expander diagnosed as failing (PMC Sierra SAS2x36 chip degradation). See [SAS Expander Replacement](SAS-Expander-Replacement.md)
-- **October 15, 2025**: Documented critical storage capacity (98% full) and interim overflow solution
-- **April 12, 2025**: Initial comprehensive documentation created
+- **March 23, 2026**:
+  - Optane SLOG (Intel MEMPEK1J032GAH 32GB) confirmed active in Mir1 pool as ZIL log device
+  - Active M.2 cooler installed on Optane module
+  - Failed chassis fan replaced with be quiet! Silent Wings Pro 4 (FDB)
+  - All chassis fans set to max speed (4 exhaust, 1 intake)
+  - Backups pool USB drive device naming documented (USB devices shift names across reboots)
+  - Mir1 pool checksum errors cleared after successful scrub
+  - Documented cooling configuration and temperature baselines in Maintenance Procedures
+  - nullfs mounts added for Sonolux/Drone Footage (Mir1 -> Backups)
+  - Mir1 at 86% capacity (13.3TB/15.4TB) — improved from 98% critical
+- **October 15, 2025**:
+  - Implemented nullfs mount solution for overflow storage from Backups pool
+  - Multiple artist directories (MCB, NCC, Overlake School, RWB) moved to Backups with nullfs mounts back to Mir1
+- **April 12, 2025**: Created comprehensive documentation including ZPools, Physical Drive Layout, SAS Expander Configuration
 
 ---
 
-## Current Status
+## Alerts
 
-**Pool**: Mir1 is ONLINE at ~97% capacity. All 6 mirrors operational, no errors.
+⚠️ **STORAGE WARNING**: Mir1 pool at 86% capacity (2.1TB free). Dedup ratio 1.25x. Monitor and plan expansion.
 
-**Temporary measures in place**:
-- mirror-1: USB Seagate drive + last surviving Seagate HDD (ada6, expected to fail)
-- mirror-3: USB WD My Passport + WD Red Plus 2TB HDD
-- 1.7TB overflow storage via Backups pool (nullfs mount at /mnt/media/movies_2)
+ℹ️ **USB DRIVE NOTE**: Backups pool mirror uses USB drives (da0/da1/da2). Device names are NOT stable across reboots — if a drive is disconnected or ports change, use `zpool online` or `zpool replace` with the new device name.
 
-**Pending hardware**:
-- 1x WD Red Plus 8TB ordered for mirror-1 (Phase 1 of [Storage Expansion Plan](Storage-Expansion-Plan.md))
-- Adaptec AEC-82885T SAS expander needed to replace failing HP expander
-- SFP+ NIC for 20 Gb/s network upgrade
-- Lenovo ThinkStation P520 + Mellanox ConnectX-3 Pro ordered (see [Media Services](Media-Services.md))
+ℹ️ **OPTANE COOLER**: NVMe cooler fan uses sleeve bearings. Monitor for bearing failure — replace with FDB fan if it fails.
 
 ---
 
-Last updated: February 14, 2026
+Last updated: March 23, 2026
