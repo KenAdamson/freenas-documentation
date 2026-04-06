@@ -191,6 +191,15 @@ SATA / SAS drives
 
 The script color-codes values by warning and critical thresholds (default 85 °C warn, 95 °C crit). Override with `WARN_C=80 CRIT_C=90 ./hot-chips.sh` if you want tighter bounds.
 
+**Continuous logging:** for baseline collection during resilvers, scrubs, or cooling changes, use `hot-chips-log.sh`:
+
+```sh
+# Sample every 60 seconds to a log file; run in tmux so it survives disconnects
+tmux new -s templog './hot-chips-log.sh 60 /var/log/sas-temps.log'
+```
+
+Output is tab-separated, one sample per line, with a header row identifying each column. Columns: `epoch`, `iso`, `hba_c`, `exp_c`, `slog_c`, then one column per attached drive. Missing values are logged as `-`. Feed it into `awk`, `sqlite`, or `gnuplot` for analysis.
+
 **Manual decode of the expander temperature** (if you want to reproduce the script math by hand):
 
 ```sh
