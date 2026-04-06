@@ -68,7 +68,7 @@ Current ZFS pool layout on the TrueNAS server (192.168.7.195).
 |---|---|---|
 | ada6 | Seagate ST500LM021 500 GB 2.5" HDD | 3 GB used of 448 GB |
 
-A second Intel Optane 32 GB is already installed in the M.2_2 slot with an active heatsink, reserved for boot migration. The actual migration (create pool → copy boot environment → switch → retire ada6) is pending the next maintenance window.
+A second Intel Optane 32 GB is planned for the M.2_2 slot to replace ada6 as the boot device. Not yet purchased or installed. The migration (create pool on the new device → attach as mirror → detach ada6 → retire the spinner) will happen once the card is in hand.
 
 ## Drive → vdev → controller cross-reference
 

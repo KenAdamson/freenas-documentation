@@ -33,7 +33,7 @@ Documentation for the TrueNAS CORE server (`freenas.local` / `192.168.7.195`).
 | LSI SAS3008 (Supermicro AOC-S3008L-L8E, IT mode, `mpr0`) | Slot 3 — HBA for the SAS expander fabric |
 | Adaptec AEC-82885T (36-port SAS-3 expander) | Slot 2 (power only), da0–da5 + da9 |
 | NVMe M.2_1 | Intel Optane 32 GB — Mir1 SLOG |
-| NVMe M.2_2 | Intel Optane 32 GB — reserved for boot (migration pending) |
+| NVMe M.2_2 | empty (planned: second Intel Optane 32 GB for boot) |
 
 ### Network
 
@@ -52,14 +52,14 @@ Documentation for the TrueNAS CORE server (`freenas.local` / `192.168.7.195`).
 |---|---|---|---|---|
 | Mir1 | 15.4 TB | 13.9 TB (90%) | 1.54 TB | ONLINE *(mirror-3 resilver in progress)* |
 | Backups | 1.81 TB | 1.44 TB (79%) | 381 GB | ONLINE |
-| boot-pool | 448 GB | 3.00 GB | 445 GB | ONLINE (on ada6; replacement Optane installed, migration pending) |
+| boot-pool | 448 GB | 3.00 GB | 445 GB | ONLINE (on ada6 500 GB 2.5" spinner; Optane replacement planned) |
 
 See [ZPools](ZPools.md) for the full vdev layout.
 
 ## Recent changes
 
 - **2026-04-06** — Deep audit after the prior night's hardware work. Confirmed dual-uplink wide port at 8 × 12 Gbps from LSI to Adaptec; rewrote Physical-Drive-Layout, SAS-Expander-Configuration, ZPools, and Storage-Expansion-Plan to reflect post-install state. Deleted stale SAS-Expander-Replacement page (work complete).
-- **2026-04-05** — **Seasonic Prime GX-1300 PSU** installed. **Adaptec AEC-82885T expander** installed and connected via dual SFF-8643 uplink to the LSI HBA. Seven pool drives migrated onto the expander. mirror-3 replacement initiated (USB WD My Passport → Seagate Barracuda interim). Second Optane 32 GB M.2 physically installed with active heatsink for future boot-pool migration. SA500 previously thought dead (mirror-4 warranty drama) turned out to be fine — the problem was power delivery, not the drive.
+- **2026-04-05** — **Seasonic Prime GX-1300 PSU** installed. **Adaptec AEC-82885T expander** installed and connected via dual SFF-8643 uplink to the LSI HBA. Seven pool drives migrated onto the expander. mirror-3 replacement initiated (USB WD My Passport → Seagate Barracuda interim). SA500 previously thought dead (mirror-4 warranty drama) turned out to be fine — the problem was power delivery, not the drive.
 - **2026-03-23** — Optane 32 GB SLOG installed with Thermalright HR10 2280 PRO heatsink. Side-exhaust fan array + foamcore top seal; SMART thresholds at 40 °C info / 55 °C critical.
 - **2026-03-01** — mirror-1 upgraded to 2× 8 TB (WD Red Plus + IronWolf). Optane SLOG ordered.
 - **2026-01/02** — HP SAS expander diagnosed as failing; pool drives temporarily migrated to onboard Intel/Marvell SATA. Three ST2000LM015 Seagates failed from the same 2021 batch.
