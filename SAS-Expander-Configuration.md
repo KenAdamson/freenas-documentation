@@ -1,185 +1,143 @@
 # SAS Expander Configuration
 
-This page documents the SAS expander configuration, including expander details, breakout cable positions, and port mappings.
+Current SAS fabric: **LSI SAS3008 HBA (mpr0) + Adaptec AEC-82885T expander**, dual SFF-8643 wide-port uplink.
 
-## SAS HBA Overview
+*Last updated: 2026-04-06 — post-install of AEC-82885T.*
 
-| Component | Details |
-|-----------|---------|
+> **History:** The previous HP SAS Expander (P/N 487738-001, PMC Sierra SAS2x36) was diagnosed as failing in January 2026 (invalid-dword errors across every PHY including unconnected ones, STP tunnels terminating mid-transfer). All pool drives were temporarily migrated off it onto Intel/Marvell SATA controllers. The **Adaptec AEC-82885T was installed on 2026-04-05**, replacing the HP expander permanently.
+
+## SAS HBA
+
+| Field | Value |
+|---|---|
 | Model | Supermicro AOC-S3008L-L8E |
-| Board Name | LSI3008-IT |
-| Chipset | LSI SAS3008 |
-| Chip Revision | ALL |
-| BIOS Revision | 8.17.00.00 |
-| Firmware Revision | 8.00.00.00 |
-| Mode | IT Mode (confirmed with mprutil show adapter) |
-| Speed | 12Gbps SAS3 / SATA3 |
-| Interface | PCIe Gen3 x8 (8.0 GB/sec) |
-| Driver | Native FreeBSD / TrueNAS support (mpr driver) |
-| Firmware | Flashed and confirmed in IT mode |
-| Temperature | 80°C (normal operating temperature) |
+| Chipset | LSI / Broadcom SAS3008 |
+| Mode | IT (confirmed via `mprutil show adapter`) |
+| BIOS | 8.17.00.00 |
+| Firmware | 8.00.00.00 |
+| Driver | `mpr` (native FreeBSD/TrueNAS) |
+| SAS speed | 12 Gb/s (SAS-3) |
 | SATA NCQ | Enabled |
-| Integrated RAID | No |
-| Physical Ports | 8 SAS lanes (PhyNum 0-7), all operating at 6.0 Gbps |
+| PCIe link (current) | **x4 PCIe 3.0 (~3.94 GB/s)** — slot-limited in slot 3 |
+| PCIe link (target) | x8 PCIe 3.0 (~7.88 GB/s) after next maintenance window swap |
+| Operating temperature | ~76 °C under load (normal for SAS3008 with added fan) |
 
-## SAS Expander Overview
+## SAS Expander
 
-| Component | Details |
-|-----------|---------|
-| Model | HP SAS Expander Card (Part Number: 487738-001) |
-| Chipset | LSI SAS2x36 (36-port 6Gbps SAS-2 Expander) |
-| Speed | SAS-2 (6Gbps per link) - works well with SATA SSDs at 6Gbps |
-| Power | Passive PCIe edge power (via powered riser) |
-| Connectivity | Connected via SFF-8087 Mini-SAS internal ports |
-| Breakout Cables | 2C, 4C, 6C (mapped in Physical-Drive-Layout.md) |
-| Uplink Ports | Connected to HBA via ports 8C and 3C for fault-tolerance and multipath |
+| Field | Value |
+|---|---|
+| Model | Adaptec AEC-82885T |
+| Type | 36-port 12 Gb/s SAS-3 expander |
+| Power | PCIe slot (12V/3.3V, **power-only** — no data lanes) |
+| Current PCIe slot | slot 2 (Gen3 x8 physical) — for power only |
+| External ports | 2x SFF-8644 (unused) |
+| Internal ports | 7x SFF-8643 |
+| Enclosure ID | `50000d17:017175be` (enclosure #2 in `sas3ircu`) |
+| Slots reported | 25 |
+| SES device | `ses1` at scbus13 target 32 |
 
-## Breakout Cable Configuration
+The AEC-82885T is a pure SAS expander. It does not appear in `pciconf` because the PCIe slot is used only for 3.3V/12V rails — there is no PCIe data connection between the expander and the CPU. All drive I/O routes through the LSI HBA over the SFF-8643 uplink cables.
 
-| Breakout Cable | Connected To | Drives |
-|----------------|--------------|--------|
-| Fanout Cable 2C | Expander Ports P1-P4 | da0, da1, da2, da3 |
-| Fanout Cable 4C | Expander Ports P1-P4 | da4, da5, da6, da7 |
-| Fanout Cable 6C | Expander Ports P1-P4 | da8, da9, da10, da11 |
+## HBA ↔ Expander uplink (wide port)
 
-## Cable Specifications
-
-### Cable Connection Summary
-
-| Connection | Cable Type | Connector A | Connector B | Notes |
-|------------|------------|------------|------------|-------|
-| HBA → Expander | SFF-8643 to SFF-8087 | SFF-8643 (HBA) | SFF-8087 (Expander) | Uplink, multi-lane SAS |
-| Expander → Drive Cages | SFF-8087 to 4x SATA Forward Breakout | SFF-8087 (Expander) | 4x SATA (Cage) | 3 fanout cables, direct to IcyDock SATA |
-
-### HBA to Expander Interconnect Cables
-
-| Connection | Cable Type | Connector Type | Length | Speed Rating |
-|------------|------------|----------------|--------|--------------|
-| HBA to Expander (8C) | SFF-8643 to SFF-8087 | Mini-SAS HD to Mini-SAS | 0.5m | 12Gbps |
-| HBA to Expander (3C) | SFF-8643 to SFF-8087 | Mini-SAS HD to Mini-SAS | 0.5m | 12Gbps |
-
-#### HBA to SAS Expander Cable Details
-
-- **Cable Type**: SFF-8643 (Mini-SAS HD) to SFF-8087 (Mini-SAS)
-- **Connector Details**:
-  - SFF-8643 (High-Density) plugs into the Supermicro HBA
-  - SFF-8087 connects to the HP SAS Expander
-- **Specifications**:
-  - Carries multi-lane SAS (up to 4 lanes of 6-12 Gbps each)
-  - Supports SAS 3.0 speeds from HBA, but expander runs at SAS-2 (6Gbps)
-  - Example: H!Fiber.com 12G Internal Mini SAS HD SFF-8643 to SFF-8087 (36-pin) cable
-- **Purpose**: High-speed uplink from HBA to SAS Expander (control and data plane)
-
-### Expander to Drive Fanout Cables
-
-| Cable | Type | Connectors | Length | Speed Rating |
-|-------|------|------------|--------|--------------|
-| Fanout Cable 2C | SFF-8087 to SATA Fanout | Mini-SAS to 4x SATA | 1m | 6Gbps |
-| Fanout Cable 4C | SFF-8087 to SATA Fanout | Mini-SAS to 4x SATA | 1m | 6Gbps |
-| Fanout Cable 6C | SFF-8087 to SATA Fanout | Mini-SAS to 4x SATA | 1m | 6Gbps |
-
-#### SAS Expander to Drive Cages Cable Details
-
-- **Cable Type**: SFF-8087 (Mini-SAS) to 4 x SATA Forward Breakout
-- **Connector Details**:
-  - Expander side: SFF-8087 (Mini-SAS)
-  - Drive cage side: 4 discrete SATA connectors (direct to IcyDock cage backplane)
-- **Specifications**:
-  - "Forward breakout" means host-side SAS to target-side SATA
-  - Supports SATA 3.0 6Gbps per port
-- **Purpose**: Distribute individual SAS lanes from the expander to the 12 SATA drives across the two IcyDock cages
-
-### Cable Pinout Information
-
-The SFF-8087 Mini-SAS to SATA fanout cables follow standard pinout configurations:
-
-- Each SFF-8087 connector provides four SAS/SATA channels (4 ports)
-- The fanout splits these into individual SATA connections
-- Standard color coding is used on the SATA connectors (typically numbered or color-coded)
-- Forward and reverse breakout cables are not interchangeable - these are forward breakout cables
-
-## Port to Drive Mapping
-
-For detailed port-to-drive mapping, including physical locations in drive cages and connections to specific expander ports, please refer to the [Physical Drive Layout](Physical-Drive-Layout.md) documentation.
-
-## SAS Topology Diagram
+Two SFF-8643 to SFF-8643 cables connect the LSI HBA to the AEC-82885T. The SAS3008 treats all 8 PHYs as a single wide port pointing at the expander:
 
 ```
-+-------------------+
-| Supermicro SAS HBA|
-| AOC-S3008L-L8E    |
-+--------+---+------+
-         |   |
-         |   |  <-- Dual uplink paths (8C and 3C) for fault-tolerance
-         v   v
-+--------+---+------+
-|  HP SAS Expander  |
-|  487738-001       |
-+--------+----------+
-         |
-    +----+----+----+
-    |         |    |
-    v         v    v
-+-------+ +-------+ +-------+
-|Fanout | |Fanout | |Fanout |
-|  2C   | |  4C   | |  6C   |
-+-------+ +-------+ +-------+
-    |         |        |
-    v         v        v
-+----------------------------+
-|      Drive Cages           |
-|  (See Physical-Drive-Layout|
-|   for detailed connections)|
-+----------------------------+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0       0001        0009       N         12      3.0    12     SAS Initiator
+1       0001        0009       N         12      3.0    12     SAS Initiator
+2       0001        0009       N         12      3.0    12     SAS Initiator
+3       0001        0009       N         12      3.0    12     SAS Initiator
+4       0001        0009       N         12      3.0    12     SAS Initiator
+5       0001        0009       N         12      3.0    12     SAS Initiator
+6       0001        0009       N         12      3.0    12     SAS Initiator
+7       0001        0009       N         12      3.0    12     SAS Initiator
 ```
 
-## Performance Considerations
+All 8 PHYs share the same `DevHandle 0009` — that is the signature of a wide port. Aggregate theoretical uplink bandwidth: **8 × 12 Gbps = 96 Gbps (~12 GB/s)**, well in excess of the HBA's current PCIe 3.0 x4 upstream bottleneck (~3.94 GB/s).
 
-- The SAS Expander operates at 6Gbps (SAS-2), while the HBA supports 12Gbps (SAS-3)
-- This configuration creates a potential bottleneck at the expander level
-- For SATA SSDs limited to 6Gbps, this is not an issue
-- For maximum performance, migrating to SAS drives would be recommended for future upgrades
-- Current configuration prioritizes drive density over maximum throughput
-- Dual uplink paths (8C and 3C) provide fault-tolerance and multipath capabilities
-- Multipath configuration helps distribute load across both uplink connections
+| Cable | Connector A (HBA side) | Connector B (expander side) | Length | Rated |
+|---|---|---|---|---|
+| Uplink #1 | SFF-8643 | SFF-8643 | 0.5 m | 12 Gb/s (H!Fiber) |
+| Uplink #2 | SFF-8643 | SFF-8643 | 0.5 m | 12 Gb/s (H!Fiber) |
 
-### Future Upgrade Considerations
+Loss of one uplink cable would transparently degrade the wide port to a 4-lane x 12 Gb/s link (48 Gbps), still far in excess of attached drive throughput. No reconfiguration is required for failover.
 
-- **SAS Drives**: Migrating to SAS drives would provide better performance, reliability, and dual-port capabilities
-- **Expander Upgrade**: A SAS-3 (12Gbps) expander would remove the current 6Gbps bottleneck
-- **Direct Attachment**: Note that SATA drives cannot be direct-connected to the HBA for performance improvements; SAS drives are required for this approach
+## Breakout cables (expander → drives)
 
-## Maintenance Notes
+3× SFF-8643 → 4× SATA forward breakout cables on the expander's internal ports feed the SATA drives:
 
-- The HP SAS Expander does not require any special configuration in TrueNAS
-- It functions as a transparent device between the HBA and the drives
-- When replacing drives, refer to the [Physical Drive Layout](Physical-Drive-Layout.md) documentation to identify the correct physical location
-- The expander firmware is factory-default and does not need updates
+| Breakout | Feeds expander slots | Drives |
+|---|---|---|
+| Breakout A | 4, 5 | da0 (8T WD Red Plus), da1 (8T IronWolf) |
+| Breakout B | 7, 8, 9 | da2 (2T WD Red Plus), da9 (2T Barracuda), da3 (2T SA500) |
+| Breakout C | 10, 11 | da4 (2T SA500), da5 (2T SA500) |
 
-## Troubleshooting SAS Connections
+Exact physical cage assignments and expander slot numbers can be re-read at any time with:
 
-If a drive becomes unavailable, check the following:
+```
+sas3ircu 0 display
+```
 
-1. Verify the SAS cable connections at both the expander and drive ends
-2. Check for any loose breakout cable connections
-3. Inspect the SAS expander for error LEDs
-4. Use the following command to check the status of SAS connections:
-   ```
-   sas2ircu LIST
-   ```
-5. For detailed information about a specific SAS adapter:
-   ```
-   sas2ircu <adapter_id> DISPLAY
-   ```
+## Topology diagram
 
-## Cable Replacement Procedure
+```
+         ┌──────────────────────────────┐
+         │ LSI SAS3008 HBA (mpr0)       │
+         │ AOC-S3008L-L8E, IT mode      │
+         │ PCIe 3.0 x4 (slot-limited)   │
+         └──┬─────────────────────────┬─┘
+            │                         │
+     SFF-8643│ (wide port: 8 PHYs @ 12 Gbps)
+            │                         │
+         ┌──┴─────────────────────────┴──┐
+         │ Adaptec AEC-82885T expander   │
+         │ 36-port SAS-3 / slot-powered  │
+         └──┬────────────┬────────────┬──┘
+            │            │            │
+       SFF-8643       SFF-8643      SFF-8643
+       → 4× SATA     → 4× SATA     → 4× SATA
+            │            │            │
+         drives       drives       drives
+```
 
-When replacing SAS cables:
+## Performance considerations
 
-1. Power down the system
-2. Label all cables before disconnecting
-3. Replace the faulty cable
-4. Ensure proper seating of all connectors
-5. Power up the system and verify all drives are detected
+- **Expander is not the bottleneck.** The 96 Gbps uplink is more than 5× the HBA's current upstream bandwidth and vastly more than the attached drives can collectively push.
+- **HBA upstream is the current bottleneck.** At ~3.94 GB/s the HBA can still saturate 6+ spinners at sequential, but a full SSD pool or a draid rebuild might want the full x8 link.
+- **Planned fix:** physically swap the LSI (slot 3, Gen3 x4) with the Adaptec (slot 2, Gen3 x8). The Adaptec only needs power and is happy in any slot. This is a no-cost improvement during the next maintenance window.
+- **HBA temperature** runs ~76 °C under sustained load even with the added fan. Within SAS3008 junction limits (~100 °C) but worth watching.
 
-*Note: This is a template. Please replace with your actual SAS expander configuration details.*
+## Replacement procedures
+
+### Failed uplink cable
+1. Power the system down.
+2. Label both cables before disconnecting.
+3. Replace the failed cable.
+4. Boot and verify all 8 PHYs come up at 12 Gbps with `mprutil show adapter`.
+
+### Failed expander
+The AEC-82885T is a passive device — if it fails, all drives behind it drop simultaneously. The pool will show both halves of any Adaptec-only mirror vdev offline. Recovery:
+
+1. Replace the expander.
+2. Re-seat all SFF-8643 cables.
+3. Boot; drives re-import by GPTID, no `zpool replace` needed.
+
+### Failed HBA
+Similar to expander failure but worse — everything downstream of the HBA is gone. Replace with another IT-mode SAS3008 (or flash a new one) and boot. Drives re-import by GPTID.
+
+## Diagnostics
+
+```bash
+# HBA status and PHY link state
+mprutil -u 0 show adapter
+
+# Full configuration dump
+sas3ircu 0 display
+
+# Enclosure status (drive slot mapping)
+sas3ircu 0 display | grep -A 5 Enclosure
+
+# Kernel bus messages
+dmesg | grep mpr0
+```

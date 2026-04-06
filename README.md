@@ -1,36 +1,38 @@
 # TrueNAS Server Documentation
 
-This repository contains comprehensive documentation for our TrueNAS server setup. It is designed to be used as a GitHub Wiki for easy navigation and reference.
+This repository contains the documentation for the TrueNAS CORE server at `freenas.local` (192.168.7.195). It is designed to be consumed as a GitHub Wiki — a GitHub Actions workflow (`.github/workflows/sync-wiki.yml`) mirrors the Markdown files here into the wiki on push.
 
-## Documentation Structure
+## Pages
 
-- [Home](Home.md) - Overview and server specifications
-- [ZPools Overview](ZPools.md) - ZFS pool configuration and dataset information
-- [Physical Drive Layout](Physical-Drive-Layout.md) - Detailed mapping of physical drives and connections
-- [SAS Expander Configuration](SAS-Expander-Configuration.md) - SAS HBA and expander details with cable specifications
-- [Maintenance Procedures](Maintenance-Procedures.md) - Common maintenance tasks and procedures
-- [Troubleshooting Guide](Troubleshooting-Guide.md) - Solutions for common issues
-- [Drive Stress Test](Drive-Stress-Test.md) - Sustained I/O test script for drive health verification
-- [SAS Expander Replacement](SAS-Expander-Replacement.md) - Diagnosis of failing HP SAS expander and replacement plan
-- [Storage Expansion Plan](Storage-Expansion-Plan.md) - Phased drive replacement and capacity upgrade strategy
-- [Media Services](Media-Services.md) - Plex media server stack, services, and hardware migration plan
+- [Home](Home.md) — server overview, specs, recent changes
+- [ZPools Overview](ZPools.md) — ZFS pool configuration, vdev layout, datasets
+- [Physical Drive Layout](Physical-Drive-Layout.md) — controller → drive → vdev mapping
+- [SAS Expander Configuration](SAS-Expander-Configuration.md) — LSI SAS3008 HBA + Adaptec AEC-82885T fabric
+- [Storage Expansion Plan](Storage-Expansion-Plan.md) — completed work and next maintenance window
+- [Maintenance Procedures](Maintenance-Procedures.md) — SMART tests, scrubs, snapshots, updates
+- [Troubleshooting Guide](Troubleshooting-Guide.md) — diagnostics for pool / hardware / performance
+- [Drive Stress Test](Drive-Stress-Test.md) — sustained I/O burn-in script
+- [Media Services](Media-Services.md) — Plex stack and adjacent services
 
-## Using This Documentation
+## Viewing as a wiki
 
-This documentation is designed to be viewed as a GitHub Wiki. After pushing to GitHub:
+After pushing to GitHub:
 
-1. Go to your repository on GitHub
-2. Click on the "Wiki" tab
-3. The documentation will be automatically available with proper navigation
+1. Go to the repository on GitHub.
+2. Click the **Wiki** tab.
+3. Pages are published automatically by the sync workflow.
 
-## Local Development
+## Editing locally
 
-To update this documentation locally before pushing to GitHub:
+```bash
+git clone <repo>
+# edit Markdown files
+git commit -am "update docs"
+git push
+```
 
-1. Clone the wiki repository: `git clone https://github.com/yourusername/yourrepo.wiki.git`
-2. Make your changes
-3. Commit and push back to GitHub
+The workflow triggers on changes to `.md` files on `main`, excluding `README.md` and `.github/**`.
 
-## Last Updated
+---
 
-February 14, 2026
+*Last updated: 2026-04-06.*

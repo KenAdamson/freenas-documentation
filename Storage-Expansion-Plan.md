@@ -1,120 +1,94 @@
 # Storage Expansion Plan
 
-This document outlines the phased approach to stabilizing and expanding storage capacity on the TrueNAS server.
+*Last updated: 2026-04-06 — major refresh after PSU swap, Adaptec install, and SA500 vindication.*
 
-## Current Situation (February 2026)
+## Current situation
 
-- **Mir1 ZPool**: ~9.98TB total, ~97% full — ONLINE but critically low on space
-- **3 Seagate ST2000LM015 failures**: All from the same 2021 Amazon batch. 4th Seagate (ada6) still running but expected to fail
-- **mirror-1**: Running on USB Seagate (temporary) + last Seagate HDD (ada6) — vulnerable
-- **mirror-3**: Running on USB WD My Passport (temporary) + WD Red Plus 2TB HDD — stable but slow
-- **mirror-6**: 2x WD Red WD10JFCX 1TB 2.5" HDDs — smallest mirrors in the pool
-- **HP SAS Expander**: Failing, all pool drives migrated to Intel/Marvell SATA controllers
-- **SMART Monitoring**: Configured with temperature thresholds, weekly short tests, monthly long tests
+- **Mir1**: 15.4 TB, 90% full, 1.25x dedup, ONLINE (mirror-3 resilver in progress)
+- **Backups**: 1.81 TB on 2× USB spinners, 79% full
+- **boot-pool**: 448 GB on a 500 GB laptop spinner (ada6), 1% used — replacement Optane already installed but not yet migrated
+- **SLOG**: Intel Optane 32 GB M.2, healthy, never saturated
+- **L2ARC**: Samsung 840 EVO 250 GB, barely used (1.21 GB)
+- **HBA**: LSI SAS3008 in slot 3, currently link-limited to PCIe 3.0 x4
+- **Expander**: Adaptec AEC-82885T in slot 2 with dual SFF-8643 wide-port uplink at 8 × 12 Gbps
+- **PSU**: Seasonic Prime GX-1300 — resolved all prior power-rail gremlins
 
-## Phased Expansion Plan
+## Recently completed
 
-### Phase 1: Stabilize mirror-1 (Ordered)
+- ✅ **Seasonic Prime GX-1300 PSU** — replaced the previous PSU; single 12V rail with proper SATA distribution. Resolved the mirror-4 SA500 "failure" (which turned out to be a power/cable issue, not a dead drive).
+- ✅ **Adaptec AEC-82885T SAS expander** — installed in slot 2, dual SFF-8643 uplinks to the LSI HBA. Replaces the long-failing HP SAS expander. Half the pool drives are now behind the expander.
+- ✅ **Intel Optane 32 GB SLOG** — installed March 2026 with HR10 2280 PRO heatsink. Operational, never saturated, thermally stable.
+- ✅ **mirror-1** — upgraded to 2× 8 TB (WD Red Plus + IronWolf). Large free-space sink absorbing most new writes.
+- ✅ **mirror-3 interim fix** — USB WD My Passport being replaced by a 2 TB Seagate Barracuda (da9). Resilver in progress.
+- ✅ **Second Optane 32 GB M.2** — physically installed in M.2_2 with an active heatsink, reserved for boot pool migration. **Still pending OS-level migration.**
 
-**Goal**: Get mirror-1 off the dying Seagate and USB drive onto reliable internal storage
+## Next maintenance window (single downtime pass)
 
-**Hardware**: 1x WD Red Plus 8TB (WD80EFPX) — $210 (ordered)
+Everything below shares a "cards out, screws out" access window, so batch them all:
 
-**Steps**:
-1. When drive arrives, partition and attach to mirror-1
-2. Resilver onto the 8TB drive
-3. Keep USB Seagate as temporary 3rd mirror member for safety during transition
-4. Once stable, the 8TB drive + ada6 (Seagate) form mirror-1
+### 1. HBA slot swap (no parts cost)
+Move the **LSI SAS3008** from slot 3 (Gen3 x4) to slot 2 (Gen3 x8). Demote the **Adaptec expander** to slot 3 (it only draws power, doesn't care about lane width). Doubles HBA upstream bandwidth from ~3.94 GB/s to ~7.88 GB/s.
 
-**Result**: mirror-1 has one trustworthy drive. If ada6 dies, the 8TB WD Red holds the data safely until Phase 2.
+**Verify before the window:** the two 0.5 m SFF-8643 uplink cables need to reach from the new HBA position to the Adaptec — eyeball the bend radius.
 
-### Phase 2: Complete mirror-1 (Next Purchase Window)
+### 2. Boot pool migration
+Create a new boot pool on the already-installed Optane 32 GB in M.2_2, copy the current boot environment, switch the active BE, and retire ada6. Frees an onboard AHCI SATA port.
 
-**Goal**: Fully replace mirror-1 with WD Red Plus drives
+### 3. Optane P4800X 750 GB L2ARC — *pending purchase, ~$284 eBay watchlist*
+Install in slot 4 (Gen3 x4) as the new L2ARC. Retires the Samsung 840 EVO 250 GB on ada3, which frees another AHCI port *and* gives the pool ~2.5 GB/s of warm-cache read bandwidth with sub-microsecond latency.
 
-**Hardware**: 1x WD Red Plus 8TB (WD80EFPX) — $210
+### 4. RAM upgrade 32 → 64 GB — *pending purchase, ~$200 eBay watchlist*
+2× Kingston KSM24ED8/16ME (DDR4-2400 ECC UDIMM) to match the existing 2× 16 GB, filling 4 of 4 slots. More RAM = more ARC = less pressure on L2ARC and spinners.
 
-**Steps**:
-1. Attach second 8TB to mirror-1
-2. Resilver
-3. Detach ada6 (last Seagate) and USB drive from mirror-1
-4. mirror-1 is now 2x 8TB WD Red Plus
+### 5. Xeon E-2288G (optional, ~$150) — *nice-to-have, not priority*
 
-**Result**: mirror-1 is fully stable on NAS-rated drives. Pool capacity grows as ZFS expands the mirror to use the full 8TB. USB drive freed up.
+## SSD → 8 TB spinner arbitrage (self-funding, opportunistic)
 
-### Phase 3: Upgrade mirror-3 (When Budget Allows)
+The economics flipped: SA500 2TB SSDs resell for ~$100-150 each, and 8 TB IronWolf/WD Red Plus spinners are $150-180 each. A single SSD pays for a pair of 8 TB spinners, **quadrupling** per-mirror capacity on roughly a zero-net trade.
 
-**Goal**: Replace USB drive in mirror-3 with proper internal storage
+**Workload fit:**
+- Media (Plex) is sequential — spinners are fine at 250 MB/s
+- Audio projects fit entirely in ARC after first read — SSDs aren't buying anything
+- Reaper writebacks are small, rare, and hit the Optane SLOG first
+- Renders peak at ~5 Mbps for audio — trivial
+- No workload on Mir1 actually needs SSD random IOPS once the working set is cached
 
-**Hardware**: 2x WD Red Plus 8TB (WD80EFPX) — $420
+**Sequencing:**
+1. PSU upgrade ✅ *done* (prerequisite — don't add spinners to a PSU you don't trust)
+2. Sell one SA500, buy two 8 TB IronWolfs
+3. Add first 8 TB to a target vdev, resilver, detach one SA500
+4. Add second 8 TB, resilver, detach second SA500
+5. Repeat per mirror, one at a time — pool stays online and redundant the whole time
 
-**Steps**:
-1. Attach first 8TB to mirror-3, resilver
-2. Attach second 8TB to mirror-3, resilver
-3. Detach USB WD My Passport and existing WD Red Plus 2TB from mirror-3
-4. mirror-3 is now 2x 8TB WD Red Plus
+**Order of mirrors to convert:**
+1. **mirror-6** first — it's the smallest (928 G) and biggest capacity bottleneck
+2. **mirror-0** next — matched SA500 pair, easy to trade
+3. **mirror-4** then **mirror-5** — same story
+4. **mirror-3 cleanup** — retire the interim Barracuda in favor of 8 TB drives once the arbitrage reaches that far
 
-**Result**: mirror-3 fully internal on NAS-rated drives. Pool capacity grows again. All USB drives removed from pool.
+**Result:** fully spinner-based pool, ~40 TB+ usable, all on the Adaptec expander, all matched NAS-rated drives. Fewer small drives = fewer SATA ports used = more expansion headroom.
 
-### Future: SAS Expander Replacement
+**Risks to manage:**
+- Power: two more spinners per mirror adds load. The Seasonic GX-1300 has the headroom, but monitor temps on the 12V rail.
+- Heat: 7200 RPM spinners run hotter than SSDs. The case airflow redesign should handle it; revisit fan speeds if temps climb.
+- Burn-in: infant mortality is real on spinners. Run long SMART + badblocks on every new drive before trusting it in a vdev.
 
-**Goal**: Replace failing HP SAS expander with Adaptec AEC-82885T for proper SAS-3 (12 Gb/s) backhaul
+## Long-term plans
 
-**Hardware**: Adaptec AEC-82885T + SFF-8643 cables
+- **Replace Backups pool** with internal spinners on the Adaptec, drop the USB enclosures entirely.
+- **Second Icy Dock 3.5" 5-bay cage** to host the expanded spinner count once arbitrage fills the first cage.
+- **HBA/controller heat management** — LSI SAS3008 runs ~76 °C under load with its added fan. Fine for now, revisit if the card's fan ever fails.
+- **Consider draid2** only if we ever do a full wipe-and-rebuild of the Backups pool with 11+ drives at once — distributed spares and fast sequential resilvers would be a real win on a cold archive pool. Not worth restructuring Mir1 for; mirrors are the right shape for that workload.
 
-**Steps**: See [SAS Expander Replacement](SAS-Expander-Replacement) for full details. When replaced:
-1. Remove TeamGroup T253X2001T SSD (only remaining device on HP expander)
-2. Install Adaptec AEC-82885T (direct PCIe power, no riser needed)
-3. Migrate drives from Intel/Marvell SATA controllers back to SAS expander path
-4. Full 12 Gb/s SAS-3 backhaul to all drives via LSI SAS3008 HBA
+## Superseded plans (archived for context)
 
-### Future: Network Upgrade
+- ❌ Samsung 870 EVO 2 TB to replace USB Passport in mirror-3 — **not needed.** The Barracuda covers the interim, and the eventual fix is an 8 TB spinner via the arbitrage plan.
+- ❌ "Replace mirror-1's dying Seagate batch" — **done.** The ST2000LM015 batch is all gone; mirror-1 is on 2× 8 TB NAS drives.
+- ❌ HP SAS Expander replacement — **done.** AEC-82885T installed.
 
-**Goal**: Upgrade to 20 Gb/s network with SFP+ NIC
+## Related
 
-**Notes**: SFP+ NIC installation planned. Will provide 20 Gb/s aggregate network bandwidth. Current pool read throughput (~422 MB/s from cache, striped across 12 drives) is well within 10 GbE capacity. The 20 Gb/s link provides headroom for concurrent workloads (Plex streaming + audio/video editing over SMB).
-
-## Cost Summary
-
-| Phase | Hardware | Cost | Capacity Impact |
-|-------|----------|------|-----------------|
-| Phase 1 | 1x WD Red Plus 8TB | $210 | Stabilizes mirror-1 |
-| Phase 2 | 1x WD Red Plus 8TB | $210 | mirror-1 grows to 8TB |
-| Phase 3 | 2x WD Red Plus 8TB | $420 | mirror-3 grows to 8TB |
-| **Total** | **4x WD Red Plus 8TB** | **$840** | **+12TB usable capacity** |
-
-## SSD Migration (On Hold)
-
-Mirrors 0, 4, and 5 are already fully SSD (WD Red SA500 / WDS200T1R0A 2TB). An all-SSD pool would eliminate noise, reduce power draw and heat, and improve random IO latency for editing workloads over SMB.
-
-However, the WD Red SA500 SATA SSD line is being discontinued and prices have spiked due to AI data center demand consuming NAND flash supply:
-- 1TB WD Red SA500: $288 ($288/TB)
-- 2TB WD Red SA500: unavailable
-- 8TB WD Red SA500: $850 ($106/TB)
-
-SSD migration is not economical at current pricing. The mechanical drives in mirrors 1, 3, and 6 do not bottleneck the primary workload (Plex streaming, file serving over 10 GbE). For the audio/video editing workload, ZFS striping across all mirrors means the SSD mirrors handle the latency-sensitive random IO while the HDDs contribute sequential bandwidth.
-
-## Seagate ST2000LM015 Failure History
-
-All four drives were 2.5" laptop HDDs (non-NAS rated) purchased from the same Amazon listing in 2021:
-
-| Serial | Failure | Date |
-|--------|---------|------|
-| (removed) | Dead, pulled from system | Jan 2026 |
-| ZDZFEZSH | Dead, pulled from system | Jan 2026 |
-| (ada3/faulted) | FAULTED with 185 read / 1.63K write / 568 cksum errors, replaced by USB drive | Feb 2026 |
-| ZDZFEZNY (ada6) | Still running, expected to fail | — |
-
-**Lesson learned**: Non-NAS-rated laptop drives from bulk Amazon listings are not suitable for 24/7 NAS operation. All replacements are NAS-rated (WD Red Plus).
-
-## Related Documentation
-
-- [ZPools Overview](ZPools) - Current pool configuration and drive mapping
-- [Physical Drive Layout](Physical-Drive-Layout) - Drive locations and connections
-- [SAS Expander Replacement](SAS-Expander-Replacement) - Failing expander diagnosis and replacement plan
-- [Maintenance Procedures](Maintenance-Procedures) - SMART monitoring, drive replacement procedures
-
----
-
-*Created: October 15, 2025*
-*Last Updated: February 5, 2026*
+- [Physical Drive Layout](Physical-Drive-Layout.md) — current controller/drive map
+- [SAS Expander Configuration](SAS-Expander-Configuration.md) — AEC-82885T + LSI HBA details
+- [ZPools](ZPools.md) — pool state and vdev membership
+- [Maintenance Procedures](Maintenance-Procedures.md)
