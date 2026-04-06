@@ -156,17 +156,60 @@ This page documents common maintenance procedures for the TrueNAS server.
    ./drive-stress-test.sh --write-test /dev/ada2  # destructive write+verify
    ```
 
+### Checking System Temperatures
+
+The ASUS WS C246 PRO does not expose `ipmitool` (no BMC). Temperature data is collected through a few different interfaces depending on the component:
+
+| Component | Tool | Notes |
+|---|---|---|
+| LSI SAS3008 HBA | `mprutil -u 0 show adapter` | Reports chip temperature in the "Temperature:" field. Typical: 75-80 °C under load. |
+| Adaptec AEC-82885T expander | `getencstat -v /dev/ses1` | The "Temperature Sensor" element reports the PMC PM8074 ASIC temperature. Decode: actual °C = (byte 2 of the status tuple) − 20. |
+| NVMe (Optane SLOG) | `nvmecontrol logpage -p 2 nvme0` | Parses the "Temperature: N K, N C, N F" line. |
+| SATA drives | `smartctl -A /dev/adaX` | Look at attribute 194 `Temperature_Celsius` — the **RAW_VALUE** column (right after the "-" marker), not the normalized field. |
+
+**One-shot: all hot chips at once.** Use the `hot-chips.sh` script in this repository:
+
+```sh
+./hot-chips.sh
+```
+
+Output looks like:
+
+```
+SAS fabric
+  LSI SAS3008 HBA (mpr0)         76 °C  warn 85°C / crit 95°C
+  Adaptec AEC-82885T expander    79 °C  warn 85°C / crit 95°C
+
+NVMe
+  nvme0 (INTEL MEMPEK1J032GAH)   31 °C
+
+SATA / SAS drives
+  ada0                           37 °C
+  ada1                           27 °C
+  ...
+```
+
+The script color-codes values by warning and critical thresholds (default 85 °C warn, 95 °C crit). Override with `WARN_C=80 CRIT_C=90 ./hot-chips.sh` if you want tighter bounds.
+
+**Manual decode of the expander temperature** (if you want to reproduce the script math by hand):
+
+```sh
+getencstat -v /dev/ses1 | grep "Temperature Sensor.*OK"
+# Element 0x16: Temperature Sensor, status: OK (0x01 0x00 0x63 0x00), descriptor: 'Temperature 00  '
+#                                               ^^^^ ^^^^ ^^^^ ^^^^
+#                                               status    +20 offset
+#                                                         ^^^^
+#                                                         0x63 = 99
+#                                                         99 - 20 = 79 °C
+```
+
 ### Checking Power Supply Status
 
-1. **View Power Supply Information**
-   ```
-   ipmitool sdr type "Power Supply"
-   ```
+The NAS runs on a Seasonic Prime GX-1300 (single 12V rail, no BMC telemetry). Monitor the PSU indirectly:
 
-2. **Check System Temperatures**
-   ```
-   ipmitool sdr type "Temperature"
-   ```
+- **UPS telemetry** (if the UPS is on USB/network) — reports load in watts and line voltage
+- **Drive flapping as a canary** — the mirror-4 SA500 "failure" in March 2026 turned out to be a power/cable issue, not a drive issue. If drives start dropping intermittently and SMART looks clean, suspect power delivery before the drive.
+- **Visual inspection** — PSU fan should be spinning under load (above ~30% — the GX-1300 runs fanless below that).
 
 ## Backup Procedures
 
@@ -213,11 +256,22 @@ This page documents common maintenance procedures for the TrueNAS server.
 
 ### Temperature Baselines (idle / under load)
 
+*Observed 2026-04-06 after PSU swap + Adaptec expander install.*
+
 | Component | Idle | Load | Notes |
-|-----------|------|------|-------|
-| Optane SLOG (nvd0) | ~31°C | ~47°C | Active cooler, max fan |
-| WD Red SA500 SSDs | 28-35°C | 39-43°C | Hottest components under sustained I/O |
-| Spinners (WD Red, Seagate) | 25-30°C | 26-37°C | Adequate airflow from negative pressure |
+|---|---|---|---|
+| LSI SAS3008 HBA (mpr0) | ~70°C | ~76-80°C | Has added fan; SAS3008 junction spec is ~100°C |
+| Adaptec AEC-82885T expander | ~75°C | ~79-85°C | No dedicated fan; PMC PM8074 rated to 110°C junction |
+| Intel Optane 32GB SLOG (nvd0) | ~31°C | ~47°C | Thermalright HR10 2280 PRO heatsink |
+| WD Red SA500 SSDs | 28-35°C | 39-43°C | Hottest drives under sustained I/O |
+| 8TB spinners (WD Red Plus, IronWolf) | 35-40°C | 40-45°C | On the Adaptec expander |
+| 1TB-2TB 2.5"/3.5" spinners | 25-33°C | 30-38°C | Mix of AHCI and Adaptec |
+
+**Thermal thresholds (SMART):**
+- Informational: 40 °C
+- Critical: 55 °C
+
+The SAS fabric chips (HBA and expander) run substantially hotter than anything else in the case — they are SAS-3 ASICs designed to run in datacenter enclosures with forced air, and temperatures in the 75-85 °C range are normal and within spec. If either climbs above ~90 °C consistently, add a 40 mm fan pointed at the chip (the HBA already has one; the expander would be the next candidate).
 
 ### Fan Replacement Notes
 

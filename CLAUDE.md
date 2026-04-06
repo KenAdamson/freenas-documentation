@@ -17,6 +17,7 @@ This is a GitHub Wiki-backed documentation repository for a TrueNAS server (192.
 - **Storage-Expansion-Plan.md** - 3-phase capacity expansion strategy
 - **Drive-Stress-Test.md** - Usage docs for the drive stress test script
 - **drive-stress-test.sh** - POSIX sh script for sustained I/O testing on FreeBSD (no dependencies)
+- **hot-chips.sh** - POSIX sh script to report temps for the SAS HBA, SAS expander, NVMe, and all attached drives
 - **README.md** - Repo description (not synced to wiki)
 
 ## Key Conventions
