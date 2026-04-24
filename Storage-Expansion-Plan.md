@@ -1,26 +1,35 @@
 # Storage Expansion Plan
 
-*Last updated: 2026-04-06 — major refresh after PSU swap, Adaptec install, and SA500 vindication.*
+*Last updated: 2026-04-24 — mirror-5 and mirror-3 upgrades complete; capacity pressure resolved.*
 
 ## Current situation
 
-- **Mir1**: 15.4 TB, 90% full, 1.25x dedup, ONLINE (mirror-3 resilver in progress)
-- **Backups**: 1.81 TB on 2× USB spinners, 79% full
-- **boot-pool**: 448 GB on a 500 GB laptop spinner (ada6), 1% used — second Optane 32 GB planned for M.2_2 to replace it, not yet in hand
-- **SLOG**: Intel Optane 32 GB M.2, healthy, never saturated
-- **L2ARC**: Samsung 840 EVO 250 GB, barely used (1.21 GB)
-- **HBA**: LSI SAS3008 in slot 3, currently link-limited to PCIe 3.0 x4
-- **Expander**: Adaptec AEC-82885T in slot 2 with dual SFF-8643 wide-port uplink at 8 × 12 Gbps
-- **PSU**: Seasonic Prime GX-1300 — resolved all prior power-rail gremlins
+- **Mir1**: **20.9 TB, 69% full** (14.6 TB used, 6.32 TB free), 1.25x dedup, ONLINE. All resilvers complete; no scrubs running.
+- **Backups**: 1.81 TB on 2× USB spinners (SMR member da9 ejected 2026-04-23), 71% full. Awaiting re-attach of liberated WD Red Plus 2 TB to restore 3-way.
+- **boot-pool**: 448 GB on ada6 500 GB 2.5" spinner, 0.7% used. Optane replacement still pending hardware arrival.
+- **SLOG**: Intel Optane 32 GB M.2 (nvd0), healthy, never saturated.
+- **L2ARC**: Samsung 840 EVO 250 GB (ada3), warm with metadata after recent resilver activity.
+- **HBA**: LSI SAS3008 in slot 3, still link-limited to PCIe 3.0 x4. Planned swap with Adaptec remains a next-window task.
+- **Expander**: Adaptec AEC-82885T in slot 2. Eight pool drives attached (da0–da6 + da11); reliable since April install.
+- **PSU**: Seasonic Prime GX-1300 — still clean, no rail issues.
 
 ## Recently completed
 
-- ✅ **Seasonic Prime GX-1300 PSU** — replaced the previous PSU; single 12V rail with proper SATA distribution. Resolved the mirror-4 SA500 "failure" (which turned out to be a power/cable issue, not a dead drive).
-- ✅ **Adaptec AEC-82885T SAS expander** — installed in slot 2, dual SFF-8643 uplinks to the LSI HBA. Replaces the long-failing HP SAS expander. Half the pool drives are now behind the expander.
-- ✅ **Intel Optane 32 GB SLOG** — installed March 2026 with HR10 2280 PRO heatsink. Operational, never saturated, thermally stable.
-- ✅ **mirror-1** — upgraded to 2× 8 TB (WD Red Plus + IronWolf). Large free-space sink absorbing most new writes.
-- ✅ **mirror-3 interim fix** — USB WD My Passport being replaced by a 2 TB Seagate Barracuda (da9). Resilver in progress.
-- ⏳ **Second Optane 32 GB M.2** — planned for M.2_2 slot to replace ada6 as the boot device. Not yet purchased or installed.
+- ✅ **mirror-5 full upgrade to 2× 8 TB IronWolves** (2026-04-20 / 2026-04-24) — ada4 WDS200T1R0A SSD → new Seagate ST8000VN004 (first half, 12 h 39 m resilver); da5 WDS200T1R0A SSD → new Seagate ST8000VN0022 (second half, 6 h 41 m resilver). Mir1 gained ~5.5 TB of free space; capacity pressure resolved.
+- ✅ **mirror-3 full upgrade to all-SSD** (2026-04-21 / 2026-04-24) — USB WD My Passport → WDS200T1R0A SSD (13 h 41 m, the liberated ada4 drive); WD Red Plus 2 TB HDD → WDS200T1R0A SSD (7 h 54 m, the liberated da5). **No more USB in a production mirror; no more HDD in mirror-3.**
+- ✅ **da9 SMR removal** (2026-04-23) — ejected from Backups pool, physically pulled. Was only there as an interim for a mirror-3 replacement that got superseded by the SSD cascade.
+- ✅ **Seasonic Prime GX-1300 PSU** — replaced the previous PSU; single 12V rail. Resolved the earlier mirror-4 SA500 "failure" (which was a power/cable issue).
+- ✅ **Adaptec AEC-82885T SAS expander** — installed 2026-04-05, replaces the failing HP SAS expander. Reliable since install.
+- ✅ **Intel Optane 32 GB SLOG** — installed March 2026 with HR10 2280 PRO heatsink. Operational, never saturated.
+- ✅ **mirror-1** — upgraded to 2× 8 TB (WD Red Plus + IronWolf) on 2026-03-01.
+
+## Pending near-term
+
+- ⏳ **Re-attach liberated WD Red Plus 2 TB to Backups** — the HDD pulled from mirror-3 on 2026-04-24 is available as a CMR internal third member for Backups. Restores 3-way redundancy.
+- ⏳ **New 5-bay 3.5" enclosure install** — already acquired, awaiting install. Enables splitting mirror-1 and mirror-5 across two enclosures for enclosure-fault tolerance.
+- ⏳ **HBA slot swap (LSI to PCIEX16_2 CPU-direct x8)** — covered in "Next maintenance window" below.
+- ⏳ **Marvell 88SE9215 pull** — card has no drives attached, scheduled for removal and migration to the P520 Postgres server build.
+- ⏳ **Second Optane 32 GB / P4800X boot** — pending hardware arrival.
 
 ## Next maintenance window
 
@@ -60,11 +69,11 @@ The economics flipped: SA500 2TB SSDs resell for ~$100-150 each, and 8 TB IronWo
 4. Add second 8 TB, resilver, detach second SA500
 5. Repeat per mirror, one at a time — pool stays online and redundant the whole time
 
-**Order of mirrors to convert:**
-1. **mirror-6** first — it's the smallest (928 G) and biggest capacity bottleneck
-2. **mirror-0** next — matched SA500 pair, easy to trade
-3. **mirror-4** then **mirror-5** — same story
-4. **mirror-3 cleanup** — retire the interim Barracuda in favor of 8 TB drives once the arbitrage reaches that far
+**Order of mirrors to convert (revised 2026-04-24 — mirror-5 and mirror-3 done):**
+1. **mirror-6** — smallest (928 G), both 1 TB HDDs; big capacity gain, HDD-to-HDD so slow resilvers
+2. **mirror-0** — matched near-new SA500 pair, liberates 2 SSDs (one goes to P520 Postgres build, one resale)
+3. **mirror-4** — matched SA500 pair, same story
+4. **mirror-3** and **mirror-5** — **already converted in April 2026** (mirror-5 → 8 TB HDD pair; mirror-3 → 2 TB SSD pair). No further work needed on these.
 
 **Result:** fully spinner-based pool, ~40 TB+ usable, all on the Adaptec expander, all matched NAS-rated drives. Fewer small drives = fewer SATA ports used = more expansion headroom.
 
@@ -82,9 +91,12 @@ The economics flipped: SA500 2TB SSDs resell for ~$100-150 each, and 8 TB IronWo
 
 ## Superseded plans (archived for context)
 
-- ❌ Samsung 870 EVO 2 TB to replace USB Passport in mirror-3 — **not needed.** The Barracuda covers the interim, and the eventual fix is an 8 TB spinner via the arbitrage plan.
+- ❌ Samsung 870 EVO 2 TB to replace USB Passport in mirror-3 — **not needed.** Superseded by the April 2026 WDS200T1R0A cascade: USB replaced by the SSD liberated from mirror-5's first-half upgrade.
+- ❌ Seagate Barracuda da9 as mirror-3 interim — **not needed.** The SSD cascade made it obsolete; da9 was ejected from Backups on 2026-04-23 and physically pulled.
 - ❌ "Replace mirror-1's dying Seagate batch" — **done.** The ST2000LM015 batch is all gone; mirror-1 is on 2× 8 TB NAS drives.
-- ❌ HP SAS Expander replacement — **done.** AEC-82885T installed.
+- ❌ HP SAS Expander replacement — **done** 2026-04-05. AEC-82885T installed.
+- ❌ **mirror-5 to all-8 TB** — **done** 2026-04-24.
+- ❌ **mirror-3 USB eviction** — **done** 2026-04-22.
 
 ## Related
 

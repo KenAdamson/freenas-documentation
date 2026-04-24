@@ -2,7 +2,7 @@
 
 Current state of drives, controllers, and ZFS vdev membership on the TrueNAS server (192.168.7.195).
 
-*Last updated: 2026-04-06 — post-PSU swap and AEC-82885T install.*
+*Last updated: 2026-04-24 — post mirror-5 (all-8 TB) and mirror-3 (all-SSD) completion.*
 
 ## Hardware summary
 
@@ -22,22 +22,23 @@ Current state of drives, controllers, and ZFS vdev membership on the TrueNAS ser
 | ada1 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 |
 | ada2 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 |
 | ada3 | Samsung 840 EVO (SATA SSD) | 250 GB | Mir1 | **L2ARC cache** |
-| ada4 | WD Red SA500 / WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-5 |
+| ~~ada4~~ | *(empty — drive liberated to mirror-3 as da11 on 2026-04-21)* | — | — | — |
 | ada5 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 |
 | ada6 | Seagate ST500LM021 (2.5" HDD) | 500 GB | **boot-pool** | — |
 | nvd0 | Intel Optane MEMPEK1J032GAH (NVMe M.2) | 32 GB | Mir1 | **SLOG** |
 
 ### Adaptec AEC-82885T expander (via LSI SAS3008)
 
-| Device | Model | Size | Role | Vdev | Expander slot |
+| Device | Model | Size | Role | Vdev | Notes |
 |---|---|---|---|---|---|
-| da0 | WD Red Plus WD80EFPX (3.5" HDD) | 8 TB | Mir1 | mirror-1 | 4 |
-| da1 | Seagate IronWolf ST8000VN004 (3.5" HDD) | 8 TB | Mir1 | mirror-1 | 5 |
-| da2 | WD Red Plus WD20EFPX (3.5" HDD) | 2 TB | Mir1 | mirror-3 | 7 |
-| da3 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-0 | 9 |
-| da4 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 | 10 |
-| da5 | WD Red SA500 / WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-5 | 11 |
-| da9 | Seagate ST2000DM008 Barracuda (3.5" HDD) | 2 TB | Mir1 | mirror-3 *(resilvering, replacing da6)* | 8 |
+| da0 | WD Red Plus WD80EFPX (3.5" HDD) | 8 TB | Mir1 | mirror-1 | |
+| da1 | Seagate IronWolf ST8000VN004 (3.5" HDD) | 8 TB | Mir1 | mirror-1 | |
+| da2 | Seagate IronWolf ST8000VN004 (3.5" HDD) | 8 TB | Mir1 | mirror-5 | Installed 2026-04-20 (was da10 until physical move 2026-04-24) |
+| da3 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-0 | |
+| da4 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 | |
+| da5 | WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-3 | Reassigned from mirror-5 to mirror-3 on 2026-04-24 |
+| da6 | Seagate IronWolf ST8000VN0022 (3.5" HDD) | 8 TB | Mir1 | mirror-5 | Installed 2026-04-24 (replaces da5's prior mirror-5 role) |
+| da11 | WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-3 | Former ada4, re-inserted on expander 2026-04-21 |
 
 Expander reports as enclosure #2, logical ID `50000d17:017175be`, 25 slots total.
 
@@ -45,9 +46,13 @@ Expander reports as enclosure #2, logical ID `50000d17:017175be`, 25 slots total
 
 | Device | Model | Size | Role | Notes |
 |---|---|---|---|---|
-| da6 | WD My Passport | 2 TB | Mir1 mirror-3 | **Being replaced by da9.** Will detach after resilver. |
 | da7 | Seagate BUP Slim | 2 TB | Backups mirror-0 | |
 | da8 | Seagate Portable | 2 TB | Backups mirror-0 | |
+
+**Retired USB/expander drives (as of 2026-04-24):**
+- **WD My Passport** (was da6) — physically unplugged 2026-04-22 after mirror-3 SSD replacement completed.
+- **ST2000DM008 Barracuda SMR** (was da9) — detached from Backups 2026-04-23, physically pulled 2026-04-23 (interim stopgap for mirror-3; never needed for its original purpose thanks to the April SSD cascade).
+- **WD Red Plus WD20EFPX 2 TB** (was da2) — physically pulled 2026-04-24 after mirror-3 finished rebuilding onto da5. Pending re-attach to Backups as CMR third member.
 
 ## Controller split analysis
 
@@ -57,12 +62,12 @@ Pool redundancy is preserved against single-controller failure for most vdevs:
 |---|---|---|---|
 | mirror-0 (SSD) | AHCI (ada0) | Adaptec (da3) | ✓ |
 | mirror-1 (HDD 8T) | Adaptec (da0) | Adaptec (da1) | ⚠ both on Adaptec |
-| mirror-3 (HDD 2T) | USB (da6 → Adaptec da9) | Adaptec (da2) | ⚠ after resilver, both Adaptec |
+| mirror-3 (SSD) | Adaptec (da11) | Adaptec (da5) | ⚠ both on Adaptec |
 | mirror-4 (SSD) | AHCI (ada2) | Adaptec (da4) | ✓ |
-| mirror-5 (SSD) | AHCI (ada4) | Adaptec (da5) | ✓ |
+| mirror-5 (HDD 8T) | Adaptec (da2) | Adaptec (da6) | ⚠ both on Adaptec |
 | mirror-6 (HDD 1T) | AHCI (ada1) | AHCI (ada5) | ⚠ both on AHCI |
 
-Single-controller exposure on mirror-1, mirror-3 (after resilver), and mirror-6 is acknowledged but not urgent — the controllers are all reliable, and mirror-6 is the smallest vdev anyway (candidate for retirement/upgrade).
+Single-controller exposure on mirror-1, mirror-3, mirror-5, and mirror-6 is acknowledged but not urgent — controllers have been reliable post-Adaptec install, and mirror-6 is the smallest vdev (candidate for retirement/upgrade). When the new 3.5" enclosure goes in, rebalancing 3.5" mirror halves across enclosures can address enclosure-fault redundancy on mirror-1 and mirror-5.
 
 ## Drive replacement procedure
 

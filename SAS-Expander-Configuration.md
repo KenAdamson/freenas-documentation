@@ -2,7 +2,7 @@
 
 Current SAS fabric: **LSI SAS3008 HBA (mpr0) + Adaptec AEC-82885T expander**, dual SFF-8643 wide-port uplink.
 
-*Last updated: 2026-04-06 — post-install of AEC-82885T.*
+*Last updated: 2026-04-24 — drive membership refreshed post mirror-5/mirror-3 cascades.*
 
 > **History:** The previous HP SAS Expander (P/N 487738-001, PMC Sierra SAS2x36) was diagnosed as failing in January 2026 (invalid-dword errors across every PHY including unconnected ones, STP tunnels terminating mid-transfer). All pool drives were temporarily migrated off it onto Intel/Marvell SATA controllers. The **Adaptec AEC-82885T was installed on 2026-04-05**, replacing the HP expander permanently.
 
@@ -67,16 +67,19 @@ Loss of one uplink cable would transparently degrade the wide port to a 4-lane x
 
 3× SFF-8643 → 4× SATA forward breakout cables on the expander's internal ports feed the SATA drives:
 
-| Breakout | Feeds expander slots | Drives |
-|---|---|---|
-| Breakout A | 4, 5 | da0 (8T WD Red Plus), da1 (8T IronWolf) |
-| Breakout B | 7, 8, 9 | da2 (2T WD Red Plus), da9 (2T Barracuda), da3 (2T SA500) |
-| Breakout C | 10, 11 | da4 (2T SA500), da5 (2T SA500) |
+| Breakout | Drives (as of 2026-04-24) |
+|---|---|
+| Breakout A | da0 (8T WD Red Plus, mirror-1), da1 (8T IronWolf VN004, mirror-1) |
+| Breakout B | da2 (8T IronWolf VN004, mirror-5 — was da10), da6 (8T IronWolf VN0022, mirror-5), da3 (2T SA500, mirror-0) |
+| Breakout C | da4 (2T SA500, mirror-4), da5 (2T WDS200T1R0A, mirror-3), da11 (2T WDS200T1R0A, mirror-3) |
+
+*Physical port assignments may have drifted; re-verify with `sas3ircu 0 display` if exact slot numbers are needed. Drive-to-breakout assignments above reflect current pool membership, not necessarily the physical SAS routing.*
 
 Exact physical cage assignments and expander slot numbers can be re-read at any time with:
 
 ```
 sas3ircu 0 display
+sesutil map        # resolves scbus13 targets to drives and slot positions
 ```
 
 ## Topology diagram
