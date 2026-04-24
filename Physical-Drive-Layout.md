@@ -1,179 +1,84 @@
 # Physical Drive Layout
 
-This page documents the physical location of all drives in the TrueNAS server, organized by drive cage and slot.
+Current state of drives, controllers, and ZFS vdev membership on the TrueNAS server (192.168.7.195).
 
-## Drive Cage Overview
+*Last updated: 2026-04-06 — post-PSU swap and AEC-82885T install.*
 
-| Cage | Description | Total Slots | Occupied Slots |
-|------|-------------|-------------|----------------|
-| Cage 0 | IcyDock 6x SATA | 6 | 6 |
-| Cage 1 | IcyDock 6x SATA | 6 | 6 |
+## Hardware summary
 
-## Hardware Configuration
+- **PSU**: Seasonic Prime GX-1300 (single 12V rail, 6 SATA chains)
+- **HBA**: LSI SAS3008 (Supermicro AOC-S3008L-L8E), IT mode, mpr driver
+- **SAS Expander**: Adaptec AEC-82885T (36-port SAS-3 12 Gb/s, slot-powered)
+- **Uplink**: Dual SFF-8643 cables HBA ↔ expander, all 8 PHYs wide-ported at 12 Gbps
+- **Drive cages**: Icy Dock 3.5" 5-bay + legacy IcyDock 2.5"/3.5" cages (see cage mapping below)
 
-- **Drive Cages**: 2x IcyDock 6x SATA drive cages
-- **SAS HBA**: SuperMicro SAS HBA
-- **SAS Expander**: HP SAS Expander
-- **Fanout Cables**: 3 fanout cables (2C, 4C, 6C)
+## Controller → drive mapping
 
-## Detailed Drive Mapping
+### Onboard Intel Cannon Lake AHCI
 
-### Cage 0 (IcyDock 6x SATA)
+| Device | Model | Size | Role | Vdev |
+|---|---|---|---|---|
+| ada0 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-0 |
+| ada1 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 |
+| ada2 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 |
+| ada3 | Samsung 840 EVO (SATA SSD) | 250 GB | Mir1 | **L2ARC cache** |
+| ada4 | WD Red SA500 / WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-5 |
+| ada5 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 |
+| ada6 | Seagate ST500LM021 (2.5" HDD) | 500 GB | **boot-pool** | — |
+| nvd0 | Intel Optane MEMPEK1J032GAH (NVMe M.2) | 32 GB | Mir1 | **SLOG** |
 
-| Slot | Drive ID | Fanout Cable | Expander Port | ZPool | Vdev | Mirror |
-|------|----------|--------------|---------------|-------|------|--------|
-| 0 | da3 | 2C | P1 | Mir1 | mirror-0 | gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde, gptid/4cffd486-d1af-11ef-8a75-b496913a6fde |
-| 1 | da2 | 2C | P2 | Mir1 | mirror-1 | gptid/017ac5ca-9656-11eb-bb15-d45d643eabc1, gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 |
-| 2 | da1 | 2C | P3 | Mir1 | mirror-3 | gptid/0f3f574a-9748-11eb-bb15-d45d643eabc1, gptid/dea802f8-9655-11eb-bb15-d45d643eabc1 |
-| 3 | da5 | 4C | P3 | Mir1 | mirror-0 | gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde, gptid/4cffd486-d1af-11ef-8a75-b496913a6fde |
-| 4 | da4 | 4C | P4 | Mir1 | mirror-1 | gptid/017ac5ca-9656-11eb-bb15-d45d643eabc1, gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 |
-| 5 | da11 | 6C | P1 | Mir1 | mirror-3 | gptid/0f3f574a-9748-11eb-bb15-d45d643eabc1, gptid/dea802f8-9655-11eb-bb15-d45d643eabc1 |
+### Adaptec AEC-82885T expander (via LSI SAS3008)
 
-### Cage 1 (IcyDock 6x SATA)
+| Device | Model | Size | Role | Vdev | Expander slot |
+|---|---|---|---|---|---|
+| da0 | WD Red Plus WD80EFPX (3.5" HDD) | 8 TB | Mir1 | mirror-1 | 4 |
+| da1 | Seagate IronWolf ST8000VN004 (3.5" HDD) | 8 TB | Mir1 | mirror-1 | 5 |
+| da2 | WD Red Plus WD20EFPX (3.5" HDD) | 2 TB | Mir1 | mirror-3 | 7 |
+| da3 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-0 | 9 |
+| da4 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 | 10 |
+| da5 | WD Red SA500 / WDS200T1R0A (SATA SSD) | 2 TB | Mir1 | mirror-5 | 11 |
+| da9 | Seagate ST2000DM008 Barracuda (3.5" HDD) | 2 TB | Mir1 | mirror-3 *(resilvering, replacing da6)* | 8 |
 
-| Slot | Drive ID | Fanout Cable | Expander Port | ZPool | Vdev | Mirror |
-|------|----------|--------------|---------------|-------|------|--------|
-| 0 | da0 | 2C | P4 | Mir1 | mirror-4 | gptid/4b17ad79-13e6-11ef-af29-b496913a6fde, gptid/f613b9f9-1407-11ef-af29-b496913a6fde |
-| 1 | da7 | 4C | P1 | Mir1 | mirror-5 | gptid/b9bb4736-6a05-11ee-8632-b496913a6fde, gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde |
-| 2 | da6 | 4C | P2 | Mir1 | mirror-6 | gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde, gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde |
-| 3 | da10 | 6C | P2 | Mir1 | mirror-4 | gptid/4b17ad79-13e6-11ef-af29-b496913a6fde, gptid/f613b9f9-1407-11ef-af29-b496913a6fde |
-| 4 | da9 | 6C | P3 | Mir1 | mirror-5 | gptid/b9bb4736-6a05-11ee-8632-b496913a6fde, gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde |
-| 5 | da8 | 6C | P4 | Mir1 | mirror-6 | gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde, gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde |
+Expander reports as enclosure #2, logical ID `50000d17:017175be`, 25 slots total.
 
-## Connection Diagram
+### USB (legacy external)
 
-```ascii
-+-------------------+
-| SuperMicro SAS HBA|
-+--------+---+------+
-         |   |
-+--------+---+------+
-|  HP SAS Expander  |---------------------------------------------------\
-+--------+----------+                                                   |
-         |         |                                                    |
-         |         |                                                    |
-         |         |                                               +----+---+
-         |         |                                               | Fanout |
-         |         |                                               |   6C   |
-         |         |                                               +--+--+--+
-         |         |                                               |  |  |  |
-         |         |                                               |  |  |  |
-         |      +--+-----+                                         |  |  |  |
-         |      | Fanout |                                         |  |  |  |
-         |      |   2C   |                                         |  |  |  |
-         |      +--+--+--+                                         |  |  |  |
-         |      |  |  |  |                                         |  |  |  |
-         |      |  |  |  |                                         |  |  |  |
-         |      |  |  |  |                                         |  |  |  |
-         |      |  |  |  |          +-------------------+          |  |  |  |
-         |      |  |  |  |          |      Cage 0       |          |  |  |  |
-         |      |  |  |  |          |                   |          |  |  |  |
-         |      |  |  |   --------> | P1 | +-----+  +-----+  |P3        |  |  |  | --------
-         |      |  |  |             |    | | da3 |  | da5 |  |          |  |  |  |         |
-         |      |  |  |             |    | +-----+  +-----+  |          |  |  |  |         |
-         |      |  |  |          P2 |    | +-----+  +-----+  |P4        |  |  |  |         |
-         |      |  |   -----------> |    | | da2 |  | da4 |  |<-------- |  |  |  | ---     |
-         |      |  |                |    | +-----+  +-----+  |          |  |  |  |    |    |
-         |      |  |                |    |                   |          |  |  |  |    |    |
-         |      |  |             P3 |    | +-----+  +-----+  |P1        |  |  |  |    |    |
-         |      |   --------------> |    | | da1 |  | da11|  |<---------   |  |  |    |    |
-         |      |                   |    | +-----+  +-----+  |             |  |  |    |    |
-         |      |                   |    |                   |             |  |  |    |    |
-         |      |                   +-------------------+             |  |  |    |    |
-         |      |                                                     |  |  |    |    |
-         |      |                   +-------------------+             |  |  |    |    |
-         |      |                   |      Cage 1       |             |  |  |    |    |
-         |      |                   |                   |             |  |  |    |    |
-         |      |                P4 |    | +-----+  +-----+  |P2           |  |  |    |    |
-         |       -----------------> |    | | da0 |  | da10|  |<------------   |  |    |    |
-         |                          |    | +-----+  +-----+  |                |  |    |    |
-         |                          |    |                   |                |  |    |    |
-         |                       P1 |    | +-----+  +-----+  |P3              |  |    |    |
-    +----+---+ -------------------> |    | | da7 |  | da9 |  |<---------------   |    |    |
-    | Fanout |                      |    | +-----+  +-----+  |                   |    |    |
-    |   4C   |                      |    |                   |                   |    |    |
-    +--+--+--+                   P2 |    | +-----+  +-----+  |P4                 |    |    |
-    |     |  \--------------------> |    | | da6 |  | da8 |  |<------------------     |    |
-    |     |                         |    | +-----+  +-----+  |                        |    |
-    |     |                         |    |                   |                        |    |
-    |     |                         +-------------------+                        |    |
-    |     |                                                                      |    |
-    |      ----------------------------------------------------------------------
-     ----------------------------------------------------------------------------------
-```
+| Device | Model | Size | Role | Notes |
+|---|---|---|---|---|
+| da6 | WD My Passport | 2 TB | Mir1 mirror-3 | **Being replaced by da9.** Will detach after resilver. |
+| da7 | Seagate BUP Slim | 2 TB | Backups mirror-0 | |
+| da8 | Seagate Portable | 2 TB | Backups mirror-0 | |
 
-## Fanout Cable Connections
+## Controller split analysis
 
-### Fanout Cable 2C
+Pool redundancy is preserved against single-controller failure for most vdevs:
 
-- **Port P1**: Connects to da3 (Cage 0, Slot 0)
-- **Port P2**: Connects to da2 (Cage 0, Slot 1)
-- **Port P3**: Connects to da1 (Cage 0, Slot 2)
-- **Port P4**: Connects to da0 (Cage 1, Slot 0)
+| vdev | Controller A | Controller B | Split? |
+|---|---|---|---|
+| mirror-0 (SSD) | AHCI (ada0) | Adaptec (da3) | ✓ |
+| mirror-1 (HDD 8T) | Adaptec (da0) | Adaptec (da1) | ⚠ both on Adaptec |
+| mirror-3 (HDD 2T) | USB (da6 → Adaptec da9) | Adaptec (da2) | ⚠ after resilver, both Adaptec |
+| mirror-4 (SSD) | AHCI (ada2) | Adaptec (da4) | ✓ |
+| mirror-5 (SSD) | AHCI (ada4) | Adaptec (da5) | ✓ |
+| mirror-6 (HDD 1T) | AHCI (ada1) | AHCI (ada5) | ⚠ both on AHCI |
 
-### Fanout Cable 4C
+Single-controller exposure on mirror-1, mirror-3 (after resilver), and mirror-6 is acknowledged but not urgent — the controllers are all reliable, and mirror-6 is the smallest vdev anyway (candidate for retirement/upgrade).
 
-- **Port P1**: Connects to da7 (Cage 1, Slot 1)
-- **Port P2**: Connects to da6 (Cage 1, Slot 2)
-- **Port P3**: Connects to da5 (Cage 0, Slot 3)
-- **Port P4**: Connects to da4 (Cage 0, Slot 4)
+## Drive replacement procedure
 
-### Fanout Cable 6C
+1. Identify the failing drive from `zpool status` output (e.g., `da2`).
+2. Look it up in the tables above to confirm which controller and expander slot it lives on.
+3. Use `sas3ircu 0 display | less` to cross-reference the SAS address and slot number for the expander.
+4. Blink the drive LED by generating read activity:
+   ```bash
+   dd if=/dev/daX of=/dev/null bs=1M count=10240
+   ```
+5. Physically replace the drive.
+6. Run `zpool replace Mir1 <old-gptid> /dev/daX` to begin the resilver.
+7. After resilver completes, verify with `zpool status`.
 
-- **Port P1**: Connects to da11 (Cage 0, Slot 5)
-- **Port P2**: Connects to da10 (Cage 1, Slot 3)
-- **Port P3**: Connects to da9 (Cage 1, Slot 4)
-- **Port P4**: Connects to da8 (Cage 1, Slot 5)
+## Maintenance notes
 
-## Drive Replacement Guide
-
-When replacing a drive, ensure you identify the correct physical location:
-
-1. Identify the failed drive using `zpool status` (e.g., `da3`)
-2. Refer to this document to find the physical location (e.g., Cage 0, Slot 0)
-3. Verify the SAS expander port and fanout cable (e.g., Expander Port P1, Fanout Cable 2C)
-
-### Identifying Drive by Blinking the LED
-
-To visually identify a drive by making its activity LED blink:
-
-1. SSH into the TrueNAS server
-2. Use the dd command to generate disk activity on the target drive:
-```bash
-dd if=/dev/daX of=/dev/null bs=1M count=10240
-```
-Replace `daX` with the drive identifier (e.g., `da3`)
-
-3. The activity LED for that specific drive should now blink rapidly
-4. Observe which physical drive is blinking to confirm its location
-5. Press Ctrl+C to stop the dd command when identification is complete
-
-### Replacing the Drive
-
-1. Power down the system if required
-2. Replace the drive in the identified slot
-3. Power up the system and use `zpool replace` to add the new drive to the pool:
-```bash
-zpool replace Mir1 da3 /dev/da3
-```
-
-## Mapping between Drive IDs and GPTIDs
-
-For reference, here is the mapping between drive IDs and their corresponding GPTIDs as shown in `zpool status`:
-
-| Drive ID | GPTID |
-|----------|-------|
-| da0 | gptid/4b17ad79-13e6-11ef-af29-b496913a6fde |
-| da1 | gptid/0f3f574a-9748-11eb-bb15-d45d643eabc1 |
-| da2 | gptid/017ac5ca-9656-11eb-bb15-d45d643eabc1 |
-| da3 | gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde |
-| da4 | gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 |
-| da5 | gptid/4cffd486-d1af-11ef-8a75-b496913a6fde |
-| da6 | gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde |
-| da7 | gptid/b9bb4736-6a05-11ee-8632-b496913a6fde |
-| da8 | gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde |
-| da9 | gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde |
-| da10 | gptid/f613b9f9-1407-11ef-af29-b496913a6fde |
-| da11 | gptid/dea802f8-9655-11eb-bb15-d45d643eabc1 |
-
-*Note: This documentation is based on the physical drive layout information from April 12, 2025.*
+- ZFS tracks drives internally by GPTID, not by `ada#`/`da#` names. Device names can shift after reboots or drive events.
+- When in doubt, match the GPTID shown in `zpool status` against `glabel status` to find the underlying partition.
+- The AEC-82885T is transparent to the OS — all bus enumeration and management happens through the LSI HBA via the `mpr` driver. See the [SAS Expander Configuration](SAS-Expander-Configuration.md) page for uplink and enclosure details.

@@ -1,90 +1,79 @@
 # TrueNAS Server Documentation
 
-Welcome to the comprehensive documentation for our TrueNAS server. This wiki contains detailed information about the server's configuration, including:
+Documentation for the TrueNAS CORE server (`freenas.local` / `192.168.7.195`).
 
-- [ZPools Overview](ZPools.md)
-- [Physical Drive Layout](Physical-Drive-Layout.md)
-- [SAS Expander Configuration](SAS-Expander-Configuration.md)
-- [Maintenance Procedures](Maintenance-Procedures.md)
-- [Troubleshooting Guide](Troubleshooting-Guide.md)
-- [Drive Stress Test](Drive-Stress-Test.md)
-- [SAS Expander Replacement](SAS-Expander-Replacement.md)
+## Pages
 
-## Server Specifications
+- [ZPools Overview](ZPools.md) — pool layout, vdevs, SLOG, L2ARC, dataset structure
+- [Physical Drive Layout](Physical-Drive-Layout.md) — controller → drive → vdev mapping
+- [SAS Expander Configuration](SAS-Expander-Configuration.md) — LSI SAS3008 HBA + Adaptec AEC-82885T fabric
+- [Storage Expansion Plan](Storage-Expansion-Plan.md) — completed work and next maintenance window
+- [Maintenance Procedures](Maintenance-Procedures.md) — SMART tests, scrubs, snapshots, updates
+- [Troubleshooting Guide](Troubleshooting-Guide.md) — diagnostic steps for pool / hardware / performance issues
+- [Drive Stress Test](Drive-Stress-Test.md) — sustained I/O drive burn-in
+- [Media Services](Media-Services.md) — Plex and related services
 
-- **System Manufacturer**: ASUSTeK COMPUTER INC.
-- **Product Name**: System Product Name
-- **System Family**: Server
-- **TrueNAS version**: TrueNAS-13.0-U6.8 (FreeBSD 13.1-RELEASE-p9)
-- **CPU**: Intel(R) Core(TM) i3-8100 CPU @ 3.60GHz
-- **RAM**: 32 GB (2x 16GB modules)
-- **Physical Memory**: 31.74 GB (34,086,277,120 bytes)
-- **Storage Controllers**:
-  - Supermicro AOC-S3008L-L8E (LSI SAS3008 PCI-Express Fusion-MPT SAS-3)
-  - Intel Cannon Lake PCH SATA AHCI Controller
-  - Marvell 88SE9215 PCIe 2.0 x1 4-port SATA 6 Gb/s Controller
-- **SAS Expander**: HP SAS Expander Card (Part Number: 487738-001)
-- **Drive Configuration**: 12 SATA drives across 2 IcyDock cages
-- **Network Configuration**:
-  - **Primary Interface**: ix0 (Intel 10GbE) - 192.168.7.195/24
-  - **Additional Interfaces**: igb0, em0 (not in use)
-  - **Default Gateway**: 192.168.7.1
-  - **DNS Configuration**:
-    - Domain: sonolux.industries
-    - Nameservers: 1.1.1.1, 8.8.8.8, 8.8.4.4
-- **System Temperatures**:
-  - CPU Cores: 32.0°C - 34.0°C
-  - ACPI Thermal Zone: 27.9°C
-  - HBA Controller: 80°C
-- **ZFS Information**:
-  - ZFS Version: zfs-2.1.14-1
-  - ZFS Kernel Module: zfs-kmod-v2023120100-zfs_f4871096b
-  - ARC Memory: 24GB Total (13GB MFU, 10GB MRU)
-- **System Performance**:
-  - Uptime: 1 hour 54 minutes (as of documentation)
-  - Load Averages: 0.34, 0.29, 0.25
-  - CPU Usage: 0.5% user, 1.7% system, 97.7% idle
-  - Memory: 27GB Wired, 36MB Active, 182MB Inactive, 2.9GB Free
+## Server specifications
 
-## Quick Reference
+| Field | Value |
+|---|---|
+| Hostname | freenas.local |
+| Management IP | 192.168.7.195 |
+| OS | TrueNAS CORE 13.3-RELEASE-p4 |
+| Motherboard | ASUS WS C246 PRO |
+| CPU | Intel Core i3-8100 @ 3.60 GHz (ECC-capable via C246) |
+| RAM | 32 GB ECC UDIMM (2× 16 GB, 2 of 4 slots populated) |
+| PSU | **Seasonic Prime GX-1300** (installed 2026-04-05, single 12V rail) |
 
-| Resource | Description | Link |
-|----------|-------------|------|
-| ZPools | Overview of all ZPools and their configuration | [ZPools](ZPools.md) |
-| Physical Drives | Mapping of drives to physical locations | [Physical Drive Layout](Physical-Drive-Layout.md) |
-| SAS Configuration | SAS expander and cable configuration | [SAS Expander Configuration](SAS-Expander-Configuration.md) |
-| Maintenance | Common maintenance procedures | [Maintenance Procedures](Maintenance-Procedures.md) |
-| Troubleshooting | Common issues and solutions | [Troubleshooting Guide](Troubleshooting-Guide.md) |
-| Drive Stress Test | Sustained I/O test for verifying drive health | [Drive Stress Test](Drive-Stress-Test.md) |
-| SAS Expander Replacement | Diagnosis of failing expander and replacement plan | [SAS Expander Replacement](SAS-Expander-Replacement.md) |
+### Storage controllers
 
-## Recent Changes
+| Controller | Role |
+|---|---|
+| Intel Cannon Lake PCH SATA AHCI | Onboard ada0–ada6 (half the pool + L2ARC + boot) |
+| LSI SAS3008 (Supermicro AOC-S3008L-L8E, IT mode, `mpr0`) | Slot 3 — HBA for the SAS expander fabric |
+| Adaptec AEC-82885T (36-port SAS-3 expander) | Slot 2 (power only), da0–da5 + da9 |
+| NVMe M.2_1 | Intel Optane 32 GB — Mir1 SLOG |
+| NVMe M.2_2 | empty (planned: second Intel Optane 32 GB for boot) |
 
-- **March 23, 2026**:
-  - Optane SLOG (Intel MEMPEK1J032GAH 32GB) confirmed active in Mir1 pool as ZIL log device
-  - Active M.2 cooler installed on Optane module
-  - Failed chassis fan replaced with be quiet! Silent Wings Pro 4 (FDB)
-  - All chassis fans set to max speed (4 exhaust, 1 intake)
-  - Backups pool USB drive device naming documented (USB devices shift names across reboots)
-  - Mir1 pool checksum errors cleared after successful scrub
-  - Documented cooling configuration and temperature baselines in Maintenance Procedures
-  - nullfs mounts added for Sonolux/Drone Footage (Mir1 -> Backups)
-  - Mir1 at 86% capacity (13.3TB/15.4TB) — improved from 98% critical
-- **October 15, 2025**:
-  - Implemented nullfs mount solution for overflow storage from Backups pool
-  - Multiple artist directories (MCB, NCC, Overlake School, RWB) moved to Backups with nullfs mounts back to Mir1
-- **April 12, 2025**: Created comprehensive documentation including ZPools, Physical Drive Layout, SAS Expander Configuration
+### Network
 
----
+| Interface | Role |
+|---|---|
+| mlxen1 (Mellanox ConnectX-3 Pro) | **Primary 10 GbE, 192.168.7.195/24** |
+| mlxen0 | Second 10 GbE port on the same card (currently idle) |
+| igb0, em0 | Onboard gigabit, unused |
+| Default gateway | 192.168.7.1 (MikroTik) |
+| DNS | 1.1.1.1, 8.8.8.8, 8.8.4.4 |
+| Domain | sonolux.industries |
+
+### Pool summary
+
+| Pool | Size | Used | Free | Status |
+|---|---|---|---|---|
+| Mir1 | 15.4 TB | 13.9 TB (90%) | 1.54 TB | ONLINE *(mirror-3 resilver in progress)* |
+| Backups | 1.81 TB | 1.44 TB (79%) | 381 GB | ONLINE |
+| boot-pool | 448 GB | 3.00 GB | 445 GB | ONLINE (on ada6 500 GB 2.5" spinner; Optane replacement planned) |
+
+See [ZPools](ZPools.md) for the full vdev layout.
+
+## Recent changes
+
+- **2026-04-06** — Deep audit after the prior night's hardware work. Confirmed dual-uplink wide port at 8 × 12 Gbps from LSI to Adaptec; rewrote Physical-Drive-Layout, SAS-Expander-Configuration, ZPools, and Storage-Expansion-Plan to reflect post-install state. Deleted stale SAS-Expander-Replacement page (work complete).
+- **2026-04-05** — **Seasonic Prime GX-1300 PSU** installed. **Adaptec AEC-82885T expander** installed and connected via dual SFF-8643 uplink to the LSI HBA. Seven pool drives migrated onto the expander. mirror-3 replacement initiated (USB WD My Passport → Seagate Barracuda interim). SA500 previously thought dead (mirror-4 warranty drama) turned out to be fine — the problem was power delivery, not the drive.
+- **2026-03-23** — Optane 32 GB SLOG installed with Thermalright HR10 2280 PRO heatsink. Side-exhaust fan array + foamcore top seal; SMART thresholds at 40 °C info / 55 °C critical.
+- **2026-03-01** — mirror-1 upgraded to 2× 8 TB (WD Red Plus + IronWolf). Optane SLOG ordered.
+- **2026-01/02** — HP SAS expander diagnosed as failing; pool drives temporarily migrated to onboard Intel/Marvell SATA. Three ST2000LM015 Seagates failed from the same 2021 batch.
 
 ## Alerts
 
-⚠️ **STORAGE WARNING**: Mir1 pool at 86% capacity (2.1TB free). Dedup ratio 1.25x. Monitor and plan expansion.
+⚠️ **Mir1 at 90%** — in ZFS's performance-cliff zone. Capacity expansion via SSD→8 TB spinner arbitrage is the main pressure. See [Storage Expansion Plan](Storage-Expansion-Plan.md).
 
-ℹ️ **USB DRIVE NOTE**: Backups pool mirror uses USB drives (da0/da1/da2). Device names are NOT stable across reboots — if a drive is disconnected or ports change, use `zpool online` or `zpool replace` with the new device name.
+⚠️ **mirror-3 resilver in progress** — Seagate Barracuda ST2000DM008 replacing USB WD My Passport. Bottlenecked by reads from the tired USB source (~45 MB/s, ~3 days to completion).
 
-ℹ️ **OPTANE COOLER**: NVMe cooler fan uses sleeve bearings. Monitor for bearing failure — replace with FDB fan if it fails.
+ℹ️ **Backups pool is 2× USB spinners.** Treat as a cold copy, not real redundancy. Longer-term this pool wants internal spinners on the Adaptec.
+
+ℹ️ **LSI HBA is slot-limited** to PCIe 3.0 x4 in slot 3. Planned slot swap with the Adaptec (which only needs power) will restore full x8. Next maintenance window.
 
 ---
 
-Last updated: March 23, 2026
+*Last updated: 2026-04-06.*

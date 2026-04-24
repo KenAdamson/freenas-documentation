@@ -16,8 +16,9 @@ This is a GitHub Wiki-backed documentation repository for a TrueNAS server (192.
 - **Troubleshooting-Guide.md** - Diagnostic steps for pool, hardware, and performance issues
 - **Storage-Expansion-Plan.md** - 3-phase capacity expansion strategy
 - **Drive-Stress-Test.md** - Usage docs for the drive stress test script
-- **SAS-Expander-Replacement.md** - Failing expander diagnosis, SMP error data, replacement plan
 - **drive-stress-test.sh** - POSIX sh script for sustained I/O testing on FreeBSD (no dependencies)
+- **hot-chips.sh** - POSIX sh script to report temps for the SAS HBA, SAS expander, NVMe, and all attached drives
+- **hot-chips-log.sh** - POSIX sh script to periodically sample hot-chips.sh and emit a tab-separated time-series log
 - **README.md** - Repo description (not synced to wiki)
 
 ## Key Conventions

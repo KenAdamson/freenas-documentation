@@ -1,294 +1,129 @@
 # ZPools Configuration
 
-This page documents all ZPools configured on the TrueNAS server, including their mirrors and individual drives.
+Current ZFS pool layout on the TrueNAS server (192.168.7.195).
 
-## ZPool Overview
+*Last updated: 2026-04-06.*
 
-| ZPool Name | Size | Allocated | Free | Capacity | Dedup | Status | Last Resilver | Purpose |
-|------------|------|-----------|------|----------|-------|--------|---------------|---------|
-| Mir1       | 9.98TB | 9.78TB | ~200GB | 97% | 1.25x | ONLINE | Feb 4, 2026 (1.78T, 0 errors) | Primary data storage |
-| Backups    | 1.81TB | 67GB | 1.75TB | 3% | 1.00x | ONLINE | Aug 11, 2025 | External USB backup storage |
-| freenas-boot | 55.5GB | 20.3GB | 35.2GB | 36% | 1.00x | ONLINE | Apr 9, 2025 | System boot pool |
+## Overview
 
-## Detailed ZPool Configuration
+| Pool | Size | Allocated | Free | Capacity | Dedup | Status |
+|---|---|---|---|---|---|---|
+| Mir1 | 15.4 TB | 13.9 TB | 1.54 TB | **90%** | 1.25x | ONLINE (resilver in progress) |
+| Backups | 1.81 TB | 1.44 TB | 381 GB | 79% | 1.00x | ONLINE |
+| boot-pool | 448 GB | 3.00 GB | 445 GB | 1% | 1.00x | ONLINE |
 
-### Mir1 (Primary Storage)
+## Mir1 (Primary Storage)
 
-**Configuration**: 6 mirror vdevs with 2 drives each, plus L2ARC cache
-**Size**: 9.98TB total (~97% capacity)
-**Deduplication Ratio**: 1.25x
-**Status**: ONLINE
-**Last Resilver**: Completed Wed Feb 4 10:54:17 2026 (resilvered 1.78T in 13:14:39, 0 errors)
+**Topology**: 6 mirror vdevs (mirror-2 was removed previously, numbering gap preserved).
+**SLOG**: Intel Optane 32GB M.2 (`nvd0`)
+**L2ARC**: Samsung 840 EVO 250GB (`ada3`)
+**Dedup**: 1.25x (mostly incidental, not actively pursued)
 
-**Current Drive Topology**:
-- **Mirrors 0, 4, 5**: WD Red SA500 / WDS200T1R0A 2TB SATA SSDs (fully solid-state)
-- **Mirror 1**: 1x USB Seagate (temporary) + 1x ST2000LM015 Seagate 2TB HDD (last surviving Seagate, expected to fail)
-- **Mirror 3**: 1x USB WD My Passport (temporary) + 1x WD Red Plus WD20EFPX 2TB 3.5" HDD
-- **Mirror 6**: 2x WD Red WD10JFCX 1TB 2.5" HDDs
+### Vdev layout
 
-**Current Issues**:
-- Pool remains at ~97% capacity
-- mirror-1 and mirror-3 each have one USB drive as a temporary member
-- mirror-1's Seagate ST2000LM015 is the last of a batch of 4 that all failed; expected to die soon
-- mirror-6 has 1TB drives (smallest mirrors in the pool)
-- 1x 8TB WD Red Plus ordered to begin replacing mirror-1's temporary drives
+| Vdev | Type | Size | Half A | Half B | Notes |
+|---|---|---|---|---|---|
+| mirror-0 | SSD | 1.82 T | ada0 (WD Red SA500 2T) | da3 (WD Red SA500 2T) | AHCI + Adaptec split ✓ |
+| mirror-1 | HDD | 7.28 T | da0 (WD Red Plus 8T) | da1 (IronWolf 8T) | Both on Adaptec |
+| mirror-3 | HDD | 1.81 T | da6 → da9 (Barracuda 2T, *resilvering*) | da2 (WD Red Plus 2T) | Interim Barracuda pending 8T upgrade |
+| mirror-4 | SSD | 1.82 T | ada2 (WD Red SA500 2T) | da4 (WD Red SA500 2T) | AHCI + Adaptec split ✓ |
+| mirror-5 | SSD | 1.82 T | ada4 (WDS200T1R0A 2T) | da5 (WDS200T1R0A 2T) | AHCI + Adaptec split ✓ |
+| mirror-6 | HDD | 928 G | ada1 (WD Red 1T 2.5") | ada5 (WD Red 1T 2.5") | Both on AHCI; smallest vdev |
 
-**Recent Events (January-February 2026)**:
-- HP SAS expander diagnosed as failing; all pool drives migrated to Intel/Marvell SATA controllers
-- 3x Seagate ST2000LM015 2TB drives failed (from same 2021 Amazon batch)
-- USB drives pressed into emergency service for mirror-1 and mirror-3
-- SMART monitoring configured with proper thresholds and scheduled tests
+### Support devices
 
-#### mirror-0 (SSD)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/4f7b78d1-d17d-11ef-8a75-b496913a6fde | ada1 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
-| gptid/4cffd486-d1af-11ef-8a75-b496913a6fde | ada11 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
+| Role | Device | Model | Notes |
+|---|---|---|---|
+| SLOG | nvd0 | Intel Optane MEMPEK1J032GAH 32 GB | 11 MB used of 27.3 GB — SLOG is never the bottleneck |
+| L2ARC | ada3 | Samsung SSD 840 EVO 250 GB | 1.21 GB used, very cold. Planned replacement: Optane P4800X 750 GB |
 
-#### mirror-1 (HDD + USB, temporary)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| da5p1 | da4 (USB) | Seagate BUP Slim (USB 3.0) | ONLINE | 0 | 0 | 0 |
-| gptid/5a9d8d43-9778-11eb-bb15-d45d643eabc1 | ada6 | ST2000LM015 Seagate 2TB HDD | ONLINE | 0 | 0 | 0 |
+### Current status
 
-#### mirror-3 (HDD + USB, temporary)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/e867be29-ed8c-11f0-9c07-b496913a6fde | da3 (USB) | WD My Passport (USB 3.0) | ONLINE | 0 | 0 | 0 |
-| ada8p2 | ada7 | WD Red Plus WD20EFPX 2TB 3.5" HDD | ONLINE | 0 | 0 | 0 |
+- **mirror-3 resilver in progress** (started 2026-04-05 23:00 UTC): da9 (Seagate Barracuda ST2000DM008) replacing the USB WD My Passport (da6). Estimated ~3 days at 45.9 MB/s, bottlenecked by reads from the tired USB source.
+- Pool is **90% full** — into the ZFS performance cliff zone. Capacity expansion is the main pressure.
+- No checksum, read, or write errors outside the resilver target.
 
-#### mirror-4 (SSD)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/4b17ad79-13e6-11ef-af29-b496913a6fde | ada2 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
-| gptid/f613b9f9-1407-11ef-af29-b496913a6fde | ada10 | WD Red SA500 2TB SSD | ONLINE | 0 | 0 | 0 |
+### Observations
 
-#### mirror-5 (SSD)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/b9bb4736-6a05-11ee-8632-b496913a6fde | ada9 | WDC WDS200T1R0A 2TB SSD | ONLINE | 0 | 0 | 0 |
-| gptid/7e75d4d4-69eb-11ee-8632-b496913a6fde | ada0 | WDC WDS200T1R0A 2TB SSD | ONLINE | 0 | 0 | 0 |
+- The SA500 that was declared dead in March 2026 and triggered a warranty claim turned out to be fine once power delivery was fixed (new PSU). Mirrors 0, 4, and 5 are now all healthy matched SSD pairs again.
+- mirror-6 (the two 1 TB 2.5" WD Reds) is both the smallest vdev and the only one entirely on the onboard AHCI controller. It's the natural retirement candidate when the SSD→8 TB spinner arbitrage happens.
+- mirror-1 (the 8 TB pair) is entirely on the Adaptec expander, meaning a single expander failure would take both halves down. This is acknowledged but not urgent.
 
-#### mirror-6 (HDD)
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/53cb5f22-14a9-11f0-ae6a-b496913a6fde | ada8 | WD Red WD10JFCX 1TB 2.5" HDD | ONLINE | 0 | 0 | 0 |
-| gptid/53c00b9b-14a9-11f0-ae6a-b496913a6fde | ada3 | WD Red WD10JFCX 1TB 2.5" HDD | ONLINE | 0 | 0 | 0 |
+## Backups (External USB)
 
-#### L2ARC Cache
-| Drive | Device | Model | State | Read | Write | Cksum |
-|-------|--------|-------|-------|------|-------|-------|
-| gptid/21b92d71-98b9-11eb-8ea4-d45d643eabc1 | ada5 | Samsung SSD 840 EVO 250GB | ONLINE | 0 | 0 | 0 |
+**Topology**: single mirror, 2x external USB spinners.
 
-#### SLOG (ZFS Intent Log) — MISSING
+| Device | Model | Interface |
+|---|---|---|
+| da7 | Seagate BUP Slim 2 TB | USB 3.0 |
+| da8 | Seagate Portable 2 TB | USB 3.0 |
 
-The pool previously had a SATA SSD serving as a SLOG device, which has since died and been removed. Without a SLOG, NFS synchronous writes commit directly to the pool's spinning rust drives, bottlenecking write throughput at ~76 MB/s despite the 20 Gbps LACP bond to the P520.
+79% full. Last resilvered 2026-04-05 with 0 errors. Mirror of two of the least-reliable drive form factors in the house, so treat it as a cold copy, not real redundancy. Longer-term this pool needs a real home (internal spinners on the Adaptec).
 
-**Replacement ordered (March 2026):**
-- **Intel Optane M10 32GB** (MEMPEK1J032GAL)
-- M.2 2280, PCIe 3.0 x2, 3D XPoint NVMe
-- eBay #186010961050 (os_dske seller, NOS from China, ~3 week shipping)
-- Will install in ASUS WS C246 PRO M.2_2 slot (PCIe Gen3 x2, ideal for Optane)
+## boot-pool
 
-**Why Optane is ideal for SLOG:**
-- 3D XPoint has ~10 microsecond write latency vs ~100+ for NAND flash
-- SLOG only holds a few seconds of in-flight sync writes (~MBs, not GBs) — 32GB is vastly more than needed
-- Optane write endurance is orders of magnitude higher than NAND
-- Perfect match for the small, latency-sensitive ZIL workload
+**Topology**: single disk.
 
-**Installation steps:**
-```bash
-# Identify the Optane device after physical install
-camcontrol devlist   # or nvmecontrol devlist
-
-# Partition for ZFS
-gpart create -s GPT <device>
-gpart add -t freebsd-zfs <device>
-
-# Add as SLOG to pool
-zpool add Mir1 log <partition>
-
-# Verify
-zpool status Mir1   # should show "logs" section
-```
-
-#### Non-Pool Drive on SAS Expander
 | Device | Model | Notes |
-|--------|-------|-------|
-| da0 | TEAM T253X2001T 1TB SSD | Connected via failing HP SAS expander. Not in any pool. Windows partition table. To be removed during expander replacement. |
+|---|---|---|
+| ada6 | Seagate ST500LM021 500 GB 2.5" HDD | 3 GB used of 448 GB |
 
-### Backups (External USB Storage)
+A second Intel Optane 32 GB is planned for the M.2_2 slot to replace ada6 as the boot device. Not yet purchased or installed. The migration (create pool on the new device → attach as mirror → detach ada6 → retire the spinner) will happen once the card is in hand.
 
-**Configuration**: 1 mirror vdev with 2 USB drives
-**Size**: 1.81TB total (67GB used, 1.75TB free, 3% capacity)
-**Deduplication Ratio**: 1.00x
-**Status**: ONLINE
-**Last Scrub**: Completed on Mon Aug 11 05:22:16 2025 (resilvered 108K in 00:00:01 with 0 errors)
-**Purpose**: External USB backup storage, currently used for interim overflow storage
+## Drive → vdev → controller cross-reference
 
-#### mirror-0
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| gptid/3c181d7a-7640-11f0-80f9-b496913a6fde | ONLINE | 0 | 0 | 0 |
-| gptid/3c937477-7640-11f0-80f9-b496913a6fde | ONLINE | 0 | 0 | 0 |
+See [Physical Drive Layout](Physical-Drive-Layout.md) for the authoritative controller mapping. Quick summary:
 
-**Interim Storage Configuration (October 2025)**:
-- Created `/mnt/Backups/movies_02` directory for overflow movie storage
-- Mounted via nullfs to `/mnt/Mir1/media/movies_2` to provide seamless access through existing NFS share
-- Mount persists across reboots via `/etc/fstab` entry
-- Accessible on NFS clients as `/mnt/media/movies_2` with 1.7TB available space
-- **This is a temporary solution until da1 and da11 are replaced with 2TB drives**
+- **Onboard AHCI**: ada0 (mir-0), ada1 (mir-6), ada2 (mir-4), ada3 (L2ARC), ada4 (mir-5), ada5 (mir-6), ada6 (boot)
+- **Adaptec expander**: da0–da1 (mir-1), da2 (mir-3), da3 (mir-0), da4 (mir-4), da5 (mir-5), da9 (mir-3 resilver)
+- **USB**: da6 (mir-3, being retired), da7+da8 (Backups)
+- **NVMe**: nvd0 (SLOG)
 
-### freenas-boot (System Boot Pool)
-
-**Configuration**: Single disk
-**Size**: 55.5GB total (20.3GB used, 35.2GB free, 36% capacity)
-**Deduplication Ratio**: 1.00x
-**Fragmentation**: 3%
-**Status**: ONLINE
-**Last Scrub**: Completed on Wed Apr 9 03:46:06 2025 (repaired 0B in 00:01:06 with 0 errors)
-**Note**: Some supported features are not enabled on the pool. The pool can still be used, but some features are unavailable. Enable all features using 'zpool upgrade'.
-
-| Drive | State | Read Errors | Write Errors | Checksum Errors |
-|-------|-------|-------------|--------------|-----------------|
-| ada0p2 | ONLINE | 0 | 0 | 0 |
-
-## ZPool Health Status
-
-To check the current status of all ZPools, run:
+## Operational commands
 
 ```bash
+# Health and resilver status
 zpool status
+
+# Capacity and vdev layout
+zpool list -v
+
+# Performance
+zpool iostat -v 1
+
+# Verify GPTID → device mapping
+glabel status
 ```
 
-## ZPool Size and Allocation
+## Recent events
 
-To view size and allocation information for all ZPools, run:
+**2026-04-06** — Deep audit after PSU swap and Adaptec install. Confirmed:
+- Dual uplink to AEC-82885T linked at 8 × 12 Gbps wide port
+- All 7 drives visible on expander
+- SA500 warranty drama resolved (drive was fine, power was the issue)
+- mirror-3 Barracuda resilver in progress
 
-```bash
-zpool list
-```
+**2026-04-05** — Seasonic Prime GX-1300 PSU installed, Adaptec AEC-82885T expander installed in slot 2, half the pool drives migrated to expander. Mir1 mirror-3 replacement initiated (USB Passport → Barracuda).
 
-## ZFS Datasets
+**2026-03-23** — Intel Optane 32 GB M.2 SLOG installed with HR10 2280 PRO heatsink. SLOG is operational and thermally stable.
 
-The TrueNAS server has the following dataset structure:
+**2026-03-01** — mirror-1 upgraded to 2x 8 TB (WD Red Plus + IronWolf). Optane SLOG ordered.
 
-### Mir1 Datasets
+**2026-01/02** — HP SAS expander diagnosed as failing; pool drives migrated off it temporarily. 3× ST2000LM015 Seagates failed from the same 2021 batch; USB drives pressed into service as interim mirror members.
 
-| Dataset | Used | Available | Referenced | Mount Point | Purpose |
-|---------|------|-----------|------------|-------------|---------|
-| Mir1 | 9.84TB | 71GB | 396KB | /mnt/Mir1 | Root dataset |
-| Mir1/Artists | 3.1TB | 71GB | 3.1TB | /mnt/Mir1/Artists | Artist files (98% full) |
-| Mir1/Documents | 128KB | 71GB | 128KB | /mnt/Mir1/Documents | Document storage |
-| Mir1/Files | 850GB | 71GB | 850GB | /mnt/Mir1/Files | General file storage (92% full) |
-| Mir1/Music | 19MB | 71GB | 19MB | /mnt/Mir1/Music | Music files |
-| Mir1/Photography | 245GB | 71GB | 245GB | /mnt/Mir1/Photography | Photography files |
-| Mir1/Pictures | 172KB | 71GB | 172KB | /mnt/Mir1/Pictures | Picture storage |
-| Mir1/Projects | 36GB | 71GB | 36GB | /mnt/Mir1/Projects | Project files |
-| Mir1/media | 5.63TB | 71GB | 5.63TB | /mnt/Mir1/media | Media storage (99% full) |
-| Mir1/media/movies_2 | - | 1.7TB | - | /mnt/Mir1/media/movies_2 | **Nullfs mount to /mnt/Backups/movies_02** (interim overflow) |
-| Mir1/sonolux | 88KB | 71GB | 88KB | /mnt/Mir1/sonolux | Sonolux data |
-| Mir1/proxy-cache | 348KB | 71GB | 348KB | /mnt/Mir1/proxy-cache | Proxy cache |
+## Dataset structure
 
-#### Jail Datasets
+The Mir1 pool carries the following top-level datasets. See `zfs list` for authoritative usage:
 
-| Dataset | Used | Available | Referenced | Mount Point | Purpose |
-|---------|------|-----------|------------|-------------|---------|
-| Mir1/iocage | 3.41GB | 1019GB | 65.5MB | /mnt/Mir1/iocage | iocage jail management |
-| Mir1/jails | 2.99GB | 1019GB | 54.9MB | /mnt/Mir1/jails | Jail storage |
-
-#### System Datasets
-
-| Dataset | Used | Available | Referenced | Mount Point | Purpose |
-|---------|------|-----------|------------|-------------|---------|
-| Mir1/.system | 622MB | 1019GB | 120KB | legacy | System data |
-| Mir1/.system/configs-* | 44.1MB | 1019GB | 43.1MB | legacy | System configurations |
-| Mir1/.system/cores | 352KB | 1024MB | 96KB | legacy | Core dumps |
-| Mir1/.system/rrd-* | 565MB | 1019GB | 39.0MB | legacy | RRD statistics |
-| Mir1/.system/samba4 | 2.18MB | 1019GB | 252KB | legacy | Samba configuration |
-| Mir1/.system/services | 96KB | 1019GB | 96KB | legacy | Services data |
-| Mir1/.system/syslog-* | 9.46MB | 1019GB | 5.46MB | legacy | System logs |
-| Mir1/.system/webui | 96KB | 1019GB | 96KB | legacy | Web UI data |
-
-### freenas-boot Datasets
-
-The boot pool contains multiple boot environments for TrueNAS system updates:
-
-| Dataset | Used | Available | Referenced | Mount Point | Notes |
-|---------|------|-----------|------------|-------------|-------|
-| freenas-boot | 20.3GB | 33.5GB | 64KB | none | Boot pool |
-| freenas-boot/ROOT | 20.2GB | 33.5GB | 29KB | none | Boot environments |
-| freenas-boot/ROOT/13.0-U6.7 | 20.2GB | 33.5GB | 1.30GB | / | Current boot environment |
-| freenas-boot/grub | 7.17MB | 33.5GB | 7.17MB | legacy | Boot loader |
-
-The boot pool contains multiple boot environments from previous TrueNAS versions, allowing for rollback if needed. The current active boot environment is 13.0-U6.7.
-
-### Backups Datasets
-
-| Dataset | Used | Available | Referenced | Mount Point | Purpose |
-|---------|------|-----------|------------|-------------|---------|
-| Backups | 67GB | 1.69TB | 96KB | /mnt/Backups | Root dataset |
-| Backups/korbin | 67GB | 1.69TB | 67GB | /mnt/Backups/korbin | Korbin's backup data |
-| Backups/movies_02 | minimal | 1.69TB | minimal | /mnt/Backups/movies_02 | Interim overflow storage for movies |
-
-**Note**: `Backups/movies_02` is mounted via nullfs to `/mnt/Mir1/media/movies_2` and is accessible through the existing NFS share at `/mnt/media/movies_2` on NFS clients.
-
-To view the complete dataset structure, run:
-
-```bash
-zfs list
-```
-
-## ZPool Performance Statistics
-
-To view performance statistics for all ZPools, run:
-
-```bash
-zpool iostat -v
-```
-
----
-
-## Drive Controller Topology
-
-Since January 2026, all pool drives have been migrated off the failing HP SAS expander onto direct SATA controllers:
-
-| Controller | Bus | Drives | Notes |
-|------------|-----|--------|-------|
-| Intel Cannon Lake PCH SATA | scbus1-8, scbus10 | ada0-ada6 | Onboard, 6 Gb/s per port |
-| Marvell 88SE9215 | scbus12-13 | ada7-ada12 | PCIe, 3 direct ports + 1 port multiplier (5 ports) |
-| HP SAS Expander (via LSI HBA) | scbus0 | da0 only | Failing. Only non-pool TeamGroup SSD remains connected |
-| USB | scbus14-17 | da1-da4 | Temporary pool members (da3 in mirror-3, da4 in mirror-1) |
-
-**Note**: Device names (ada#, da#) may shift across reboots or drive events. ZFS tracks drives by GPTID internally. The device names shown in `zpool status` reflect the name at the time the drive was added or last replaced.
-
-## Recent Updates
-
-**February 4, 2026**:
-- Pool is ONLINE after series of drive failures and resilvers
-- 3x Seagate ST2000LM015 drives failed and removed (from same 2021 batch)
-- Faulted ada3 (Seagate) replaced by USB Seagate in mirror-1 via `zpool replace`
-- USB WD My Passport serving as temporary member of mirror-3
-- All drives migrated off failing HP SAS expander to Intel/Marvell SATA
-- SMART monitoring configured: temperature thresholds, weekly short tests, monthly long tests
-- 1x 8TB WD Red Plus WD80EFPX ordered for mirror-1 upgrade
-
-**October 15, 2025**:
-- Updated pool capacity information
-- Added Backups pool documentation (1.81TB external USB storage)
-- Documented interim storage solution: nullfs mount for overflow storage
-- Identified upgrade path for 1TB drives
-
-**April 12, 2025**:
-- Initial comprehensive documentation created
-
-**March 1, 2026**:
-- mirror-1 upgraded: 2x 8TB Seagate IronWolf ST8000VN004 (replaced USB Seagate + failing ST2000LM015)
-- mirror-1 now has ~7.25TB free — absorbing bulk of new writes due to ZFS free-space allocation
-- Resilver completed Mar 1 04:18:55 2026 (352M in 00:00:29, 0 errors)
-- Dead SLOG identified as cause of slow NFS writes (~76 MB/s over 20 Gbps LACP)
-- Intel Optane M10 32GB ordered as SLOG replacement (eBay, ~3 week ETA from China)
-- rsync modules "media" and "backups" added for efficient file transfer
-- Batch transcode pipeline created to re-encode 4K remuxes >50GB via Arc A770 VAAPI
-
-*Last updated: March 2, 2026*
+- `Mir1/Artists` — music production archives
+- `Mir1/Documents`
+- `Mir1/Files`
+- `Mir1/Music`
+- `Mir1/Photography`
+- `Mir1/Pictures`
+- `Mir1/Projects` — Reaper / audio project files
+- `Mir1/media` — Plex media root (movies, tv, audiobooks, games, etc.)
+- `Mir1/sonolux`
+- `Mir1/proxy-cache`
+- `Mir1/.system` — TrueNAS system datasets
+- `Mir1/iocage`, `Mir1/jails` — legacy jail storage
