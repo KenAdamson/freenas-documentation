@@ -2,7 +2,7 @@
 
 Current SAS fabric: **LSI SAS3008 HBA (mpr0) + Adaptec AEC-82885T expander**, dual SFF-8643 wide-port uplink.
 
-*Last updated: 2026-04-24 — drive membership refreshed post mirror-5/mirror-3 cascades.*
+*Last updated: 2026-04-25 — slot swap executed; HBA now CPU-direct PCIe 3.0 x8.*
 
 > **History:** The previous HP SAS Expander (P/N 487738-001, PMC Sierra SAS2x36) was diagnosed as failing in January 2026 (invalid-dword errors across every PHY including unconnected ones, STP tunnels terminating mid-transfer). All pool drives were temporarily migrated off it onto Intel/Marvell SATA controllers. The **Adaptec AEC-82885T was installed on 2026-04-05**, replacing the HP expander permanently.
 
@@ -18,9 +18,8 @@ Current SAS fabric: **LSI SAS3008 HBA (mpr0) + Adaptec AEC-82885T expander**, du
 | Driver | `mpr` (native FreeBSD/TrueNAS) |
 | SAS speed | 12 Gb/s (SAS-3) |
 | SATA NCQ | Enabled |
-| PCIe link (current) | **x4 PCIe 3.0 (~3.94 GB/s)** — slot-limited in slot 3 |
-| PCIe link (target) | x8 PCIe 3.0 (~7.88 GB/s) after next maintenance window swap |
-| Operating temperature | ~76 °C under load (normal for SAS3008 with added fan) |
+| PCIe link (current) | **x8 PCIe 3.0 (~7.88 GB/s)** — slot 2, CPU-direct (post 2026-04-25 swap) |
+| Operating temperature | ~84 °C under sustained load post-swap (was ~76 °C in slot 3); within SAS3008 envelope |
 
 ## SAS Expander
 
@@ -29,7 +28,7 @@ Current SAS fabric: **LSI SAS3008 HBA (mpr0) + Adaptec AEC-82885T expander**, du
 | Model | Adaptec AEC-82885T |
 | Type | 36-port 12 Gb/s SAS-3 expander |
 | Power | PCIe slot (12V/3.3V, **power-only** — no data lanes) |
-| Current PCIe slot | slot 2 (Gen3 x8 physical) — for power only |
+| Current PCIe slot | **slot 3** (Gen3 x4 physical) — for power only; demoted from slot 2 in the 2026-04-25 swap to free the CPU-direct x8 for the HBA |
 | External ports | 2x SFF-8644 (unused) |
 | Internal ports | 7x SFF-8643 |
 | Enclosure ID | `50000d17:017175be` (enclosure #2 in `sas3ircu`) |
@@ -54,7 +53,7 @@ PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
 7       0001        0009       N         12      3.0    12     SAS Initiator
 ```
 
-All 8 PHYs share the same `DevHandle 0009` — that is the signature of a wide port. Aggregate theoretical uplink bandwidth: **8 × 12 Gbps = 96 Gbps (~12 GB/s)**, well in excess of the HBA's current PCIe 3.0 x4 upstream bottleneck (~3.94 GB/s).
+All 8 PHYs share the same `DevHandle 0009` — that is the signature of a wide port. Aggregate theoretical uplink bandwidth: **8 × 12 Gbps = 96 Gbps (~12 GB/s)**. Post-2026-04-25 slot swap, the HBA's PCIe 3.0 x8 upstream (~7.88 GB/s) is the new effective ceiling; previously the chipset-attached x4 in slot 3 was the bottleneck.
 
 | Cable | Connector A (HBA side) | Connector B (expander side) | Length | Rated |
 |---|---|---|---|---|
@@ -88,7 +87,7 @@ sesutil map        # resolves scbus13 targets to drives and slot positions
          ┌──────────────────────────────┐
          │ LSI SAS3008 HBA (mpr0)       │
          │ AOC-S3008L-L8E, IT mode      │
-         │ PCIe 3.0 x4 (slot-limited)   │
+         │ PCIe 3.0 x8 (slot 2, CPU)    │
          └──┬─────────────────────────┬─┘
             │                         │
      SFF-8643│ (wide port: 8 PHYs @ 12 Gbps)
@@ -106,10 +105,9 @@ sesutil map        # resolves scbus13 targets to drives and slot positions
 
 ## Performance considerations
 
-- **Expander is not the bottleneck.** The 96 Gbps uplink is more than 5× the HBA's current upstream bandwidth and vastly more than the attached drives can collectively push.
-- **HBA upstream is the current bottleneck.** At ~3.94 GB/s the HBA can still saturate 6+ spinners at sequential, but a full SSD pool or a draid rebuild might want the full x8 link.
-- **Planned fix:** physically swap the LSI (slot 3, Gen3 x4) with the Adaptec (slot 2, Gen3 x8). The Adaptec only needs power and is happy in any slot. This is a no-cost improvement during the next maintenance window.
-- **HBA temperature** runs ~76 °C under sustained load even with the added fan. Within SAS3008 junction limits (~100 °C) but worth watching.
+- **Expander is not the bottleneck.** The 96 Gbps uplink is well in excess of the HBA's PCIe 3.0 x8 upstream (~7.88 GB/s) and vastly more than the attached drives can collectively push.
+- **HBA upstream is comfortably ahead of any realistic drive load.** At ~7.88 GB/s the link can soak a full all-SSD pool or a wide-mirror sequential scrub without saturating.
+- **HBA temperature** climbed from ~76 °C (slot 3) to ~84 °C (slot 2) under sustained load — the new slot has different airflow geometry. Within SAS3008 junction limits (~100 °C) but worth watching; a card-mounted fan upgrade is the next step if it climbs further.
 
 ## Replacement procedures
 

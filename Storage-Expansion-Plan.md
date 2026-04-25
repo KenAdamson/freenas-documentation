@@ -1,20 +1,23 @@
 # Storage Expansion Plan
 
-*Last updated: 2026-04-24 — mirror-5 and mirror-3 upgrades complete; capacity pressure resolved.*
+*Last updated: 2026-04-25 — maintenance window executed: slot swap, P4800X install, Marvell pull, Backups internal CMR replacement.*
 
 ## Current situation
 
 - **Mir1**: **20.9 TB, 69% full** (14.6 TB used, 6.32 TB free), 1.25x dedup, ONLINE. All resilvers complete; no scrubs running.
-- **Backups**: 1.81 TB on 2× USB spinners (SMR member da9 ejected 2026-04-23), 71% full. Awaiting re-attach of liberated WD Red Plus 2 TB to restore 3-way.
-- **boot-pool**: 448 GB on ada6 500 GB 2.5" spinner, 0.7% used. Optane replacement still pending hardware arrival.
-- **SLOG**: Intel Optane 32 GB M.2 (nvd0), healthy, never saturated.
-- **L2ARC**: Samsung 840 EVO 250 GB (ada3), warm with metadata after recent resilver activity.
-- **HBA**: LSI SAS3008 in slot 3, still link-limited to PCIe 3.0 x4. Planned swap with Adaptec remains a next-window task.
-- **Expander**: Adaptec AEC-82885T in slot 2. Eight pool drives attached (da0–da6 + da11); reliable since April install.
+- **Backups**: 1.81 TB, 71% full. Now **1× internal WD Red Plus 2 TB CMR (`da8`) + 1× USB Seagate Portable (`da15`)** — BUP Slim USB replaced 2026-04-25. BUP Slim (`da14`) physically still attached but detached from the pool; pending physical pull.
+- **boot-pool**: 448 GB on `ada0` (Seagate ST500LM021 500 GB 2.5" spinner — same physical disk, renumbered from `ada6` after AHCI reshuffle), 0.7% used. **Migration to M10 Optane is drafted** — see `freenas-boot-migration-runbook.md` on `/mnt/media`.
+- **SLOG**: Intel Optane P4800X 750 GB, 16 G partition (`nvd0p1`); healthy, never saturated.
+- **L2ARC**: Intel Optane P4800X 750 GB, 683 G partition (`nvd0p2`); ~205 GB warm (~30 % of partition).
+- **Idle Optane**: M10 32 GB MEMPEK1J032GAH (`nvd1`), freed from SLOG duty in the maintenance window; sitting unpartitioned, earmarked for boot.
+- **HBA**: LSI SAS3008 in **slot 2, CPU-direct PCIe 3.0 x8 (~7.88 GB/s)** post-2026-04-25 swap. Confirmed at link width via `mprutil show adapter`.
+- **Expander**: Adaptec AEC-82885T in **slot 3** (power only, demoted from slot 2 in the swap). 12 Mir1 drives + 1 Backups drive + 2 idle drives (840 EVO `da6`, BUP Slim `da14`) attached; 14 drives behind it total. Reliable since April install.
+- **Marvell 88SE9215**: **REMOVED 2026-04-25**. No drives were attached. Reserved for the P520 Postgres build.
 - **PSU**: Seasonic Prime GX-1300 — still clean, no rail issues.
 
 ## Recently completed
 
+- ✅ **2026-04-25 maintenance window** — physical slot swap (LSI from chipset x4 in slot 3 to CPU x8 in slot 2; Adaptec demoted to slot 3); Intel Optane **P4800X 750 GB installed in slot 4**, gpart-partitioned and rolled into Mir1 as 16 G SLOG + 683 G L2ARC; old M10 SLOG and Samsung 840 EVO L2ARC removed (M10 idle, 840 EVO in chassis as `da6` pending physical pull). Marvell 88SE9215 card pulled. All remaining AHCI drives migrated onto the Adaptec (only `ada0` boot disk left on AHCI). Backups BUP Slim USB replaced with internal WD Red Plus 2 TB (4 h 8 m resilver, 0 errors). L2ARC tunables (`vfs.zfs.l2arc_write_max`, `write_boost`, `noprefetch`) set persistently via the TrueNAS tunables API.
 - ✅ **mirror-5 full upgrade to 2× 8 TB IronWolves** (2026-04-20 / 2026-04-24) — ada4 WDS200T1R0A SSD → new Seagate ST8000VN004 (first half, 12 h 39 m resilver); da5 WDS200T1R0A SSD → new Seagate ST8000VN0022 (second half, 6 h 41 m resilver). Mir1 gained ~5.5 TB of free space; capacity pressure resolved.
 - ✅ **mirror-3 full upgrade to all-SSD** (2026-04-21 / 2026-04-24) — USB WD My Passport → WDS200T1R0A SSD (13 h 41 m, the liberated ada4 drive); WD Red Plus 2 TB HDD → WDS200T1R0A SSD (7 h 54 m, the liberated da5). **No more USB in a production mirror; no more HDD in mirror-3.**
 - ✅ **da9 SMR removal** (2026-04-23) — ejected from Backups pool, physically pulled. Was only there as an interim for a mirror-3 replacement that got superseded by the SSD cascade.
@@ -25,26 +28,14 @@
 
 ## Pending near-term
 
-- ⏳ **Re-attach liberated WD Red Plus 2 TB to Backups** — the HDD pulled from mirror-3 on 2026-04-24 is available as a CMR internal third member for Backups. Restores 3-way redundancy.
+- ⏳ **Boot-pool migration `ada0` → `nvd1` (M10 Optane)** — full procedure drafted at `/mnt/media/freenas-boot-migration-runbook.md`. Requires a brief reboot through TrueNAS install USB for a pool-rename swap (M10 is too small for `boot.attach`'s standard layout, so we replicate via `zfs send | zfs recv` and rename in rescue). Frees the last AHCI port and gets boot onto Optane.
+- ⏳ **Physical pull of retired drives** — Samsung 840 EVO 250 GB (`da6`, ex-L2ARC) and Seagate BUP Slim 2 TB (`da14`, ex-Backups). Both detached from pools, just need bay reclamation.
 - ⏳ **New 5-bay 3.5" enclosure install** — already acquired, awaiting install. Enables splitting mirror-1 and mirror-5 across two enclosures for enclosure-fault tolerance.
-- ⏳ **HBA slot swap (LSI to PCIEX16_2 CPU-direct x8)** — covered in "Next maintenance window" below.
-- ⏳ **Marvell 88SE9215 pull** — card has no drives attached, scheduled for removal and migration to the P520 Postgres server build.
-- ⏳ **Second Optane 32 GB / P4800X boot** — pending hardware arrival.
 
 ## Next maintenance window
 
-### 1. HBA slot swap (no parts cost)
-Move the **LSI SAS3008** from slot 3 (Gen3 x4) to slot 2 (Gen3 x8). Demote the **Adaptec expander** to slot 3 (it only draws power, doesn't care about lane width). Doubles HBA upstream bandwidth from ~3.94 GB/s to ~7.88 GB/s.
-
-**Verify before the window:** the two 0.5 m SFF-8643 uplink cables need to reach from the new HBA position to the Adaptec — eyeball the bend radius.
-
-### 2. Optane P4800X 750 GB L2ARC — *pending purchase, ~$284 eBay watchlist*
-Install in slot 4 (Gen3 x4) as the new L2ARC. `zpool remove Mir1 cache <840-evo>` then `zpool add Mir1 cache <p4800x>`. Retires the Samsung 840 EVO 250 GB on ada3, which frees an AHCI port *and* gives the pool ~2.5 GB/s of warm-cache read bandwidth with sub-microsecond latency.
-
-## Later maintenance window
-
-### Second Optane 32 GB + boot pool migration
-Install a second Intel Optane 32 GB in M.2_2 **(ordered, shipping from China, ~2 weeks+)**, verify it enumerates as `nvme1`, then attach it as a mirror to the boot pool. After resilver completes (~30 seconds for 3 GB of data), detach ada6 and retire it. Frees an onboard AHCI SATA port. Before install, confirm M.2_2 is set to PCIe/NVMe mode in BIOS and check for any lane-sharing conflict with onboard SATA ports.
+### Boot-pool migration to M10 Optane
+The standard `boot.attach` path is blocked because TrueNAS demands a layout (EFI + 16 G swap + ZFS sized to match the source disk, ~466 G total) that won't fit on the M10's 27 G. The runbook works around this with `zfs send | zfs recv` into a fresh small pool on the M10, then a one-time pool-rename swap from rescue media. Source disk (`ada0`) stays untouched until the very end, so rollback is just "boot off ada0 again." See `/mnt/media/freenas-boot-migration-runbook.md` for the per-phase commands and rollback table.
 
 ## Opportunistic (any window)
 
@@ -97,6 +88,12 @@ The economics flipped: SA500 2TB SSDs resell for ~$100-150 each, and 8 TB IronWo
 - ❌ HP SAS Expander replacement — **done** 2026-04-05. AEC-82885T installed.
 - ❌ **mirror-5 to all-8 TB** — **done** 2026-04-24.
 - ❌ **mirror-3 USB eviction** — **done** 2026-04-22.
+- ❌ **HBA slot swap to CPU-direct x8** — **done** 2026-04-25.
+- ❌ **P4800X 750 GB SLOG+L2ARC** — **done** 2026-04-25.
+- ❌ **Marvell 88SE9215 pull** — **done** 2026-04-25.
+- ❌ **Backups BUP Slim USB → internal CMR** — **done** 2026-04-25 (4 h 8 m resilver, 0 errors).
+- ❌ "Re-attach liberated WD Red Plus 2 TB to Backups" — superseded; the WD Red Plus 2 TB went directly into Backups as an internal mirror replacement for the worn BUP Slim, not as a third member behind the USB pair. Same drive, more direct outcome.
+- ❌ "Second Intel Optane 32 GB ordered from China for boot" — superseded by the maintenance-window plan: the *existing* M10 (ex-SLOG) is now the boot target instead. The China-incoming M10 is reassigned to the P520 Postgres build.
 
 ## Related
 
