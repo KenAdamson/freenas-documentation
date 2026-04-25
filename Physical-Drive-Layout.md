@@ -28,7 +28,7 @@ All other AHCI ports are empty post-2026-04-25. The 1 TB WD Reds (formerly ada1/
 | Device | Model | Size | Role | Slot | Notes |
 |---|---|---|---|---|---|
 | nvd0 | Intel Optane P4800X (NVMe AIC) | 750 GB | Mir1 SLOG + L2ARC | Slot 4 (Gen3 x4) | Partitioned: `nvd0p1` (16 G freebsd-zfs) = SLOG; `nvd0p2` (683 G freebsd-zfs) = L2ARC |
-| nvd1 | Intel Optane MEMPEK1J032GAH (NVMe M.2) | 32 GB | (idle) | M.2_1 | Ex-Mir1-SLOG, freed in maintenance window. Earmarked for boot-pool migration; currently unpartitioned. |
+| nvd1 | Intel Optane MEMPEK1J032GAH (NVMe M.2) | 32 GB | Backups SLOG | M.2_1 | Was Mir1 SLOG; reattached as Backups SLOG on 2026-04-25 (interim use). Still the planned target for boot-pool migration — will need to be detached from Backups first. |
 
 ### Adaptec AEC-82885T expander (via LSI SAS3008)
 
@@ -40,7 +40,7 @@ All other AHCI ports are empty post-2026-04-25. The 1 TB WD Reds (formerly ada1/
 | da3 | Seagate IronWolf ST8000VN0022 (3.5" HDD) | 8 TB | Mir1 | mirror-5 | s/n ZA1BFXBR |
 | da4 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-0 | s/n 2448HBD00027 |
 | da5 | WD Red SA500 (SATA SSD) | 2 TB | Mir1 | mirror-4 | s/n 24114M4A1F07 |
-| da6 | Samsung SSD 840 EVO (SATA SSD) | 250 GB | (idle) | — | **Detached as L2ARC 2026-04-25**; physically still attached, awaiting bay reclamation |
+| da6 | Samsung SSD 840 EVO (SATA SSD) | 250 GB | Backups | **L2ARC** | Was Mir1 L2ARC; reattached as Backups L2ARC on 2026-04-25 (interim use of otherwise-idle parts) |
 | da7 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 | Migrated from AHCI in 2026-04-25 maintenance window |
 | da8 | WD Red Plus WD20EFPX (3.5" HDD) | 2 TB | Backups | mirror-0 | s/n WD-WX22DA5964LF; new internal CMR member added 2026-04-25 |
 | da9 | WD Red WD10JFCX (2.5" HDD) | 1 TB | Mir1 | mirror-6 | Migrated from AHCI in 2026-04-25 maintenance window |

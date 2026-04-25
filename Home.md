@@ -35,7 +35,7 @@ Documentation for the TrueNAS CORE server (`freenas.local` / `192.168.7.195`).
 | LSI SAS3008 (Supermicro AOC-S3008L-L8E, IT mode, `mpr0`) | **Slot 2 — CPU-direct PCIe 3.0 x8 (~7.88 GB/s)**; HBA for the SAS expander fabric |
 | Adaptec AEC-82885T (36-port SAS-3 expander) | **Slot 3 (power only)**; hosts da0–da13 (12 Mir1 + 1 Backups + 2 idle) |
 | Slot 4 (PCH x4) | **Intel Optane P4800X 750 GB** (`nvd0`) — Mir1 SLOG (16 G partition) + L2ARC (683 G partition) |
-| NVMe M.2_1 | Intel Optane 32 GB MEMPEK1J032GAH (`nvd1`) — **idle, planned as new boot device** (see boot-migration runbook) |
+| NVMe M.2_1 | Intel Optane 32 GB MEMPEK1J032GAH (`nvd1`) — **interim Backups SLOG** since 2026-04-25; planned target for boot migration (must be detached from Backups first) |
 | NVMe M.2_2 | empty |
 | ~~Marvell 88SE9215~~ | **Removed 2026-04-25**; migrated to spare parts for the P520 Postgres build |
 
@@ -55,7 +55,7 @@ Documentation for the TrueNAS CORE server (`freenas.local` / `192.168.7.195`).
 | Pool | Size | Used | Free | Status |
 |---|---|---|---|---|
 | Mir1 | **20.9 TB** | 14.6 TB (**69%**) | 6.32 TB | ONLINE — SLOG+L2ARC on P4800X partitions; 205 G of L2ARC warm |
-| Backups | 1.81 TB | 1.30 TB (71%) | 523 GB | ONLINE (2-way — 1× internal CMR WD Red Plus + 1× USB Seagate Portable) |
+| Backups | 1.81 TB | 1.30 TB (71%) | 523 GB | ONLINE (2-way: internal CMR + USB; **SLOG on M10 Optane**, **L2ARC on Samsung 840 EVO** — interim use of otherwise-idle parts) |
 | boot-pool | 448 GB | 3.00 GB | 445 GB | ONLINE (on ada6 500 GB 2.5" spinner; Optane replacement planned) |
 
 See [ZPools](ZPools.md) for the full vdev layout.
@@ -81,7 +81,7 @@ See [ZPools](ZPools.md) for the full vdev layout.
 
 ℹ️ **All Mir1 drives are on the Adaptec expander** — single-expander-failure exposure for every vdev. The AEC-82885T has been reliable since the 2026-04-05 install. The new 5-bay 3.5" enclosure (acquired, not yet installed) can host a second SAS chain to rebalance once it's in.
 
-ℹ️ **Boot-pool still on the Seagate ST500LM021** (now `ada0`, the only AHCI device left). Migration to the M10 Optane is drafted — see `/mnt/media/freenas-boot-migration-runbook.md` on the share.
+ℹ️ **Boot-pool still on the Seagate ST500LM021** (now `ada0`, the only AHCI device left). Migration to the M10 Optane is drafted — see `/mnt/media/freenas-boot-migration-runbook.md` on the share. **Note**: M10 is currently serving as Backups SLOG (interim); detach it from Backups before running the migration.
 
 ℹ️ **HBA temperature** runs ~84 °C under sustained load post-slot-swap (was ~76 °C in slot 3). Within SAS3008 thermal envelope but worth watching; the new slot may have less direct airflow. Consider a card-mounted fan upgrade if it climbs further.
 

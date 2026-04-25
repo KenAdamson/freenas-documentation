@@ -56,12 +56,16 @@ Current ZFS pool layout on the TrueNAS server (192.168.7.195).
 
 **Topology**: 2-way mirror — 1× internal CMR + 1× USB. Materially better than the all-USB state; loss of the USB member degrades to a healthy internal mirror leg, not "two USB chains both fail at once."
 
-| Device | Model | Interface |
-|---|---|---|
-| da8 | WD Red Plus WD20EFPX 2 TB | SATA via Adaptec expander (internal CMR) |
-| da15 | Seagate Portable ST2000LM007 2 TB | USB 3.0 |
+| Device | Model | Interface | Role |
+|---|---|---|---|
+| da8 | WD Red Plus WD20EFPX 2 TB | SATA via Adaptec expander (internal CMR) | mirror-0 half A |
+| da15 | Seagate Portable ST2000LM007 2 TB | USB 3.0 | mirror-0 half B |
+| nvd1p1 | Intel Optane M10 32 GB MEMPEK1J032GAH | NVMe M.2_1 | **SLOG** (added 2026-04-25 — interim use of ex-Mir1-SLOG; will need to detach before boot-pool migration to nvd1) |
+| da6p1 | Samsung 840 EVO 250 GB | SATA via Adaptec expander | **L2ARC** (added 2026-04-25 — interim use of ex-Mir1-L2ARC) |
 
 71% full. Last scrub 2026-04-19 with 0 errors. Last resilver 2026-04-25 (BUP Slim → WD Red Plus, 4 h 8 m, 0 errors).
+
+The SLOG and L2ARC additions are interim — both devices were "idle, awaiting retirement" after the maintenance window, and putting them on Backups gives them a job until they're permanently repurposed. SLOG benefit on Backups is modest (most writes are async-style snapshot replications), but the parts cost zero and the latency floor for any sync writes drops sharply.
 
 **Idle but still attached**: Seagate BUP Slim ST2000LM003 (`da14`, s/n S32WJ9DF700679) — detached from Backups 2026-04-25 (Load_Cycle_Count was 1.03 M, ~172 % of spec), still physically plugged in, awaiting unplug.
 
@@ -82,9 +86,9 @@ See [Physical Drive Layout](Physical-Drive-Layout.md) for the authoritative cont
 - **Onboard AHCI**: ada0 (boot only) — all other AHCI ports vacated 2026-04-25
 - **Adaptec expander (Mir1)**: da0+da1 (mir-1), da2+da3 (mir-5), da4+da12 (mir-0), da5+da10 (mir-4), da7+da9 (mir-6), da11+da13 (mir-3)
 - **Adaptec expander (Backups)**: da8 (internal CMR member)
-- **Adaptec expander (idle)**: da6 (Samsung 840 EVO 250 GB, ex-L2ARC, awaiting physical pull)
+- **Adaptec expander (Backups L2ARC)**: da6 (Samsung 840 EVO 250 GB, interim cache for Backups since 2026-04-25)
 - **USB**: da15 (Backups Portable) — *BUP Slim da14 detached 2026-04-25, awaiting unplug*
-- **NVMe**: nvd0p1 (Mir1 SLOG), nvd0p2 (Mir1 L2ARC); nvd1 idle (boot migration target)
+- **NVMe**: nvd0p1 (Mir1 SLOG), nvd0p2 (Mir1 L2ARC); nvd1p1 (Backups SLOG, interim — boot migration target)
 
 ## Operational commands
 

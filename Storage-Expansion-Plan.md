@@ -9,7 +9,8 @@
 - **boot-pool**: 448 GB on `ada0` (Seagate ST500LM021 500 GB 2.5" spinner — same physical disk, renumbered from `ada6` after AHCI reshuffle), 0.7% used. **Migration to M10 Optane is drafted** — see `freenas-boot-migration-runbook.md` on `/mnt/media`.
 - **SLOG**: Intel Optane P4800X 750 GB, 16 G partition (`nvd0p1`); healthy, never saturated.
 - **L2ARC**: Intel Optane P4800X 750 GB, 683 G partition (`nvd0p2`); ~205 GB warm (~30 % of partition).
-- **Idle Optane**: M10 32 GB MEMPEK1J032GAH (`nvd1`), freed from SLOG duty in the maintenance window; sitting unpartitioned, earmarked for boot.
+- **Backups SLOG**: M10 32 GB MEMPEK1J032GAH (`nvd1p1`) — interim assignment 2026-04-25 to give the ex-Mir1-SLOG a job. Still earmarked as the boot-migration target; needs to detach from Backups first.
+- **Backups L2ARC**: Samsung 840 EVO 250 GB (`da6p1`) — interim assignment 2026-04-25, ex-Mir1-L2ARC.
 - **HBA**: LSI SAS3008 in **slot 2, CPU-direct PCIe 3.0 x8 (~7.88 GB/s)** post-2026-04-25 swap. Confirmed at link width via `mprutil show adapter`.
 - **Expander**: Adaptec AEC-82885T in **slot 3** (power only, demoted from slot 2 in the swap). 12 Mir1 drives + 1 Backups drive + 2 idle drives (840 EVO `da6`, BUP Slim `da14`) attached; 14 drives behind it total. Reliable since April install.
 - **Marvell 88SE9215**: **REMOVED 2026-04-25**. No drives were attached. Reserved for the P520 Postgres build.
@@ -28,8 +29,8 @@
 
 ## Pending near-term
 
-- ⏳ **Boot-pool migration `ada0` → `nvd1` (M10 Optane)** — full procedure drafted at `/mnt/media/freenas-boot-migration-runbook.md`. Requires a brief reboot through TrueNAS install USB for a pool-rename swap (M10 is too small for `boot.attach`'s standard layout, so we replicate via `zfs send | zfs recv` and rename in rescue). Frees the last AHCI port and gets boot onto Optane.
-- ⏳ **Physical pull of retired drives** — Samsung 840 EVO 250 GB (`da6`, ex-L2ARC) and Seagate BUP Slim 2 TB (`da14`, ex-Backups). Both detached from pools, just need bay reclamation.
+- ⏳ **Boot-pool migration `ada0` → `nvd1` (M10 Optane)** — full procedure drafted at `/mnt/media/freenas-boot-migration-runbook.md`. Requires a brief reboot through TrueNAS install USB for a pool-rename swap (M10 is too small for `boot.attach`'s standard layout, so we replicate via `zfs send | zfs recv` and rename in rescue). **Pre-step**: `zpool remove Backups <m10-slog-gptid>` to free the M10 from its current Backups SLOG role.
+- ⏳ **Physical pull of retired drives** — Seagate BUP Slim 2 TB (`da14`, ex-Backups) detached from pool, just needs unplug. (Samsung 840 EVO `da6` is no longer pending — it's now Backups L2ARC.)
 - ⏳ **New 5-bay 3.5" enclosure install** — already acquired, awaiting install. Enables splitting mirror-1 and mirror-5 across two enclosures for enclosure-fault tolerance.
 
 ## Next maintenance window
