@@ -29,8 +29,16 @@
 
 ## Pending near-term
 
+- ⏳ **8 TB IronWolf pair acquisition** — second pair on order ($225 ST8000VN0004 + $252 ST8000VN0022, both vetted: SMART clean, under PoH cutoff). Earmarked for the next mirror addition (see "Add-then-evacuate" plan below).
+- ⏳ **Add-then-evacuate Mir1 reshape** — once new 8 TB pair arrives:
+  1. **Add** new 8 TB pair as new mirror vdev (`mirror-7`) → pool grows from 20.9 TB to ~28 TB; alloc drops from 69 % to ~52 %; tons of headroom.
+  2. **Evacuate** mirror-6 (1 TB WD Red 2.5" pair) via `zpool remove Mir1 mirror-6` → ~913 GB blocks rewrite onto the new mirror-7 with fresh DVAs (partial defrag).
+  3. **Evacuate mirror-4** (SA500 SSD pair) via `zpool remove Mir1 mirror-4` → ~1.78 TB blocks rewrite onto remaining vdevs (more defrag); liberates the SA500 pair for the P520 Postgres build. Picked over mirror-0 on two metrics: **higher free-space fragmentation** (80% vs 74% per `zpool list -v`) and **lower PoH** (~1000 vs ~1300 hours, so the liberated drives go to P520 with more remaining service life).
+  4. End state: 5 mirror vdevs (mir-0/1/3/5/7), ~24.5 TB usable, ~14.6 TB used (~60 % full); 2× 1 TB WD Reds free for retirement; 2× SA500 SSDs free for P520. The blocks evacuated from mirror-6/4 land freshly allocated on contiguous free space — partial defragmentation as a side effect.
+  - **Permanent cost**: ZFS retains an indirect-mapping table for the ~22M relocated 128 K records (~800 MB RAM) for the life of the pool. Acceptable on a 32→64 GB system; negligible read-time overhead.
+  - **No undo** past metaslab evacuation completion.
 - ⏳ **Boot-pool migration `ada0` → `nvd1` (M10 Optane)** — full procedure drafted at `/mnt/media/freenas-boot-migration-runbook.md`. Requires a brief reboot through TrueNAS install USB for a pool-rename swap (M10 is too small for `boot.attach`'s standard layout, so we replicate via `zfs send | zfs recv` and rename in rescue). **Pre-step**: `zpool remove Backups <m10-slog-gptid>` to free the M10 from its current Backups SLOG role.
-- ⏳ **Physical pull of retired drives** — Seagate BUP Slim 2 TB (`da14`, ex-Backups) detached from pool, just needs unplug. (Samsung 840 EVO `da6` is no longer pending — it's now Backups L2ARC.)
+- ⏳ **Physical pull of retired drives** — Seagate BUP Slim 2 TB (`da14`, ex-Backups) detached from pool, just needs unplug. (Samsung 840 EVO `da6` is no longer pending — it's now Backups L2ARC.) Add the 1 TB WD10JFCX 2.5" pair after the mirror-6 evacuation.
 - ⏳ **New 5-bay 3.5" enclosure install** — already acquired, awaiting install. Enables splitting mirror-1 and mirror-5 across two enclosures for enclosure-fault tolerance.
 
 ## Next maintenance window
@@ -61,11 +69,12 @@ The economics flipped: SA500 2TB SSDs resell for ~$100-150 each, and 8 TB IronWo
 4. Add second 8 TB, resilver, detach second SA500
 5. Repeat per mirror, one at a time — pool stays online and redundant the whole time
 
-**Order of mirrors to convert (revised 2026-04-24 — mirror-5 and mirror-3 done):**
-1. **mirror-6** — smallest (928 G), both 1 TB HDDs; big capacity gain, HDD-to-HDD so slow resilvers
-2. **mirror-0** — matched near-new SA500 pair, liberates 2 SSDs (one goes to P520 Postgres build, one resale)
-3. **mirror-4** — matched SA500 pair, same story
-4. **mirror-3** and **mirror-5** — **already converted in April 2026** (mirror-5 → 8 TB HDD pair; mirror-3 → 2 TB SSD pair). No further work needed on these.
+**Order of mirrors to convert (revised 2026-04-26 — switching to add-then-evacuate strategy):**
+1. **mirror-6 + mirror-4** — handled together via the `zpool remove` add-then-evacuate plan above. Adds 8 TB pair as new mirror-7, then evacuates mirror-6 and mirror-4. Liberates 2× 1 TB WD Reds (retire) + 2× SA500 SSDs (P520 build trigger). Net pool capacity: ~24.5 TB.
+2. **mirror-0** — last remaining SA500 pair; can be similarly evacuated when next 8 TB pair arrives, or left in place as the pool's remaining SSD performance vdev.
+3. **mirror-3** and **mirror-5** — **already converted in April 2026** (mirror-5 → 8 TB HDD pair; mirror-3 → 2 TB SSD pair).
+
+**Why the strategy switched:** the original "swap one drive at a time" plan worked but produced no defragmentation. `zpool remove` evacuates a vdev and rewrites its blocks freshly onto remaining vdevs — same drive-liberation outcome, with partial defrag as a side effect. Cost: a permanent indirect-mapping table for the relocated blocks (~800 MB RAM for ~22M relocated 128 K records). Acceptable given the 64 GB RAM target.
 
 **Result:** fully spinner-based pool, ~40 TB+ usable, all on the Adaptec expander, all matched NAS-rated drives. Fewer small drives = fewer SATA ports used = more expansion headroom.
 
